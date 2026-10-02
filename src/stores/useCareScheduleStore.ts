@@ -9,6 +9,8 @@ type CareScheduleState = {
 
   addSchedule: (schedule: CareSchedule) => void;
 
+  updateSchedule: (id: string, updates: Partial<CareSchedule>) => void;
+
   completeSchedule: (id: string) => void;
 
   removeSchedule: (id: string) => void;
@@ -50,6 +52,18 @@ export const useCareScheduleStore = create<CareScheduleState>()(
               ? {
                   ...schedule,
                   notificationId,
+                }
+              : schedule,
+          ),
+        })),
+
+      updateSchedule: (id, updates) =>
+        set((state) => ({
+          schedules: state.schedules.map((schedule) =>
+            schedule.id === id
+              ? {
+                  ...schedule,
+                  ...updates,
                 }
               : schedule,
           ),

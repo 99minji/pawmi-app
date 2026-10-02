@@ -16,16 +16,17 @@ export type CareSchedule = {
   petId: string;
 
   type: CareScheduleType;
-
   name: string;
 
   dueDate: string;
 
   repeat?: CareRepeat;
 
-  completedAt?: string;
-
+  notificationEnabled?: boolean;
+  notificationTime?: string;
   notificationId?: string;
+
+  completedAt?: string;
 
   createdAt: string;
 };

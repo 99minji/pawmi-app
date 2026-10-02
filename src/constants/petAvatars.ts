@@ -1,5 +1,7 @@
 type PetAvatarState = 'idle' | 'happy' | 'sick' | 'rainy' | 'care' | 'rest';
 
+import type { AvatarBreed } from '@/types/pet';
+
 export const petAvatars = {
   POMERANIAN: {
     idle: require('../../assets/avatars/dog/pomeranian/idle.png'),
@@ -12,3 +14,11 @@ export const petAvatars = {
     idleTail: require('../../assets/avatars/dog/pomeranian/idle-tail.png'),
   },
 } as const;
+
+export function getPetAvatar(avatarBreed?: AvatarBreed) {
+  if (avatarBreed && avatarBreed in petAvatars) {
+    return petAvatars[avatarBreed as keyof typeof petAvatars];
+  }
+
+  return petAvatars.POMERANIAN;
+}

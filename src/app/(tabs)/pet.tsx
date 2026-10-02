@@ -1,166 +1,579 @@
+import { router } from 'expo-router';
 import {
   CalendarDays,
   ChevronRight,
-  PawPrint,
+  HeartPulse,
+  Pencil,
   Scale,
 } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
+import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { colors } from '@/constants/colors';
+import { getPetAvatar } from '@/constants/petAvatars';
+import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
+import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
+import type { CareRepeat } from '@/types/care';
+import { formatGender, formatPetAge } from '@/utils/pet';
 
 export default function PetScreen() {
   const pet = usePetStore((state) => state.pet);
 
+  const records = useHealthStore((state) => state.records);
+
+  const schedules = useCareScheduleStore((state) => state.schedules);
+
+  const petRecords = useMemo(
+    () => records.filter((record) => record.petId === pet?.id),
+    [records, pet?.id],
+  );
+
+  const upcomingSchedules = useMemo(() => {
+    if (!pet) {
+      return [];
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return schedules
+      .filter((schedule) => {
+        if (schedule.petId !== pet.id || schedule.completedAt) {
+          return false;
+        }
+
+        const [year, month, day] = schedule.dueDate.split('-').map(Number);
+
+        const dueDate = new Date(year, month - 1, day);
+
+        return dueDate >= today;
+      })
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  }, [schedules, pet]);
+
   if (!pet) {
     return (
-      <View style={styles.container}>
-        <AppText variant="heading1">반려동물</AppText>
-
-        <AppText variant="body1" color="secondary" style={styles.emptyText}>
-          등록된 반려동물이 없어요.
+      <View style={styles.emptyContainer}>
+        <AppText variant="body1" color="secondary">
+          반려동물 정보를 불러오고 있어요.
         </AppText>
       </View>
     );
   }
 
+  const avatar = getPetAvatar(pet.avatarBreed);
+
+  const avatarSource = avatar.idleBody;
+
+  const tailSource = avatar.idleTail;
+
   return (
-    <View style={styles.container}>
-      <AppText variant="heading1">반려동물</AppText>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <AppText variant="heading1">반려동물</AppText>
 
-      <View style={styles.profile}>
-        <View style={styles.profileImage}>
-          <PawPrint size={32} color={colors.primary[600]} />
-        </View>
+        <Pressable
+          style={styles.editButton}
+          onPress={() => router.push('/pet/edit' as never)}
+        >
+          <Pencil size={18} color={colors.primary[700]} />
+        </Pressable>
+      </View>
 
-        <AppText variant="heading2" style={styles.name}>
+      {/* Pet Hero */}
+      <View style={styles.hero}>
+        <View style={styles.avatarGlow} />
+
+        <AnimatedPetAvatar
+          size={210}
+          source={avatarSource}
+          tailSource={tailSource}
+        />
+
+        <AppText variant="heading1" style={styles.petName}>
           {pet.name}
         </AppText>
 
-        <AppText variant="body2" color="secondary">
-          {pet.species === 'DOG' ? '강아지' : '고양이'}
+        <AppText variant="body2" color="secondary" style={styles.petMeta}>
+          {pet.breed ?? '포메라니안'} · {formatPetAge(pet)} ·{' '}
+          {formatGender(pet.gender)}
         </AppText>
       </View>
 
-      <View style={styles.section}>
-        <AppText variant="heading2" style={styles.sectionTitle}>
-          기본 정보
-        </AppText>
+      {/* 기본 정보 */}
+      <AppText variant="heading2" style={styles.sectionTitle}>
+        기본 정보
+      </AppText>
 
-        <InfoRow
-          icon={<CalendarDays size={20} color={colors.primary[600]} />}
-          label="생일"
-          value={pet.birthDate}
-        />
+      <View style={styles.infoCard}>
+        <InfoRow label="이름" value={pet.name} />
 
-        <InfoRow
-          icon={<PawPrint size={20} color={colors.primary[600]} />}
-          label="성별"
-          value={pet.gender === 'MALE' ? '남아' : '여아'}
-        />
+        <Divider />
 
-        <InfoRow
-          icon={<Scale size={20} color={colors.primary[600]} />}
+        <InfoRow label="품종" value={pet.breed ?? '포메라니안'} />
+
+        <Divider />
+
+        <InfoRow label="나이" value={formatPetAge(pet)} />
+
+        <Divider />
+
+        <InfoRow label="성별" value={formatGender(pet.gender)} />
+      </View>
+
+      {/* 관리 정보 */}
+      <AppText variant="heading2" style={styles.sectionTitle}>
+        관리 정보
+      </AppText>
+
+      <View style={styles.stats}>
+        <StatCard
+          icon={<Scale size={20} color={colors.primary[700]} />}
           label="현재 체중"
-          value={pet.weightKg ? `${pet.weightKg}kg` : '아직 기록이 없어요'}
+          value={pet.weightKg ? `${pet.weightKg}kg` : '-'}
+        />
+
+        <StatCard
+          icon={<HeartPulse size={20} color={colors.primary[700]} />}
+          label="건강 기록"
+          value={`${petRecords.length}개`}
+        />
+
+        <StatCard
+          icon={<CalendarDays size={20} color={colors.primary[700]} />}
+          label="예정 관리"
+          value={`${upcomingSchedules.length}개`}
         />
       </View>
+
+      {/* 예정된 관리 */}
+      <View style={styles.sectionHeader}>
+        <AppText variant="heading2">예정된 관리</AppText>
+
+        {upcomingSchedules.length > 5 && (
+          <Pressable>
+            <AppText variant="label" color="brand">
+              전체 보기
+            </AppText>
+          </Pressable>
+        )}
+      </View>
+
+      {upcomingSchedules.length > 0 ? (
+        <View style={styles.scheduleList}>
+          {upcomingSchedules.slice(0, 5).map((schedule) => (
+            <Pressable
+              key={schedule.id}
+              style={styles.scheduleCard}
+              onPress={() =>
+                router.push({
+                  pathname: '/care/[id]',
+                  params: {
+                    id: schedule.id,
+                  },
+                })
+              }
+            >
+              <View style={styles.scheduleIcon}>
+                <CalendarDays size={20} color={colors.primary[700]} />
+              </View>
+
+              <View style={styles.scheduleContent}>
+                <AppText variant="body1">{schedule.name}</AppText>
+
+                <AppText
+                  variant="body2"
+                  color="secondary"
+                  style={styles.scheduleDate}
+                >
+                  {formatScheduleDate(schedule.dueDate)}
+                </AppText>
+              </View>
+
+              <View style={styles.scheduleRight}>
+                {schedule.repeat && (
+                  <View style={styles.repeatBadge}>
+                    <AppText variant="label" color="brand">
+                      {formatRepeat(schedule.repeat)}
+                    </AppText>
+                  </View>
+                )}
+
+                <ChevronRight size={18} color={colors.neutral[400]} />
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyScheduleCard}>
+          <View style={styles.emptyScheduleIcon}>
+            <CalendarDays size={22} color={colors.primary[700]} />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <AppText variant="body1">예정된 관리가 없어요</AppText>
+
+            <AppText
+              variant="body2"
+              color="secondary"
+              style={styles.emptyDescription}
+            >
+              예방이나 관리 일정을 등록하면 여기에서 확인할 수 있어요.
+            </AppText>
+          </View>
+        </View>
+      )}
+
+      {/* 프로필 수정 */}
+      <Pressable
+        style={styles.profileEditRow}
+        onPress={() => router.push('/pet/edit' as never)}
+      >
+        <View style={styles.editContent}>
+          <AppText variant="body1">프로필 수정</AppText>
+
+          <AppText
+            variant="body2"
+            color="secondary"
+            style={styles.editDescription}
+          >
+            이름, 생일, 품종 등을 변경할 수 있어요.
+          </AppText>
+        </View>
+
+        <ChevronRight size={20} color={colors.neutral[400]} />
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.infoRow}>
+      <AppText variant="body2" color="secondary">
+        {label}
+      </AppText>
+
+      <AppText variant="body1">{value}</AppText>
     </View>
   );
 }
 
-function InfoRow({
+function Divider() {
+  return <View style={styles.divider} />;
+}
+
+function StatCard({
   icon,
   label,
   value,
 }: {
   icon: React.ReactNode;
   label: string;
-  value?: string;
+  value: string;
 }) {
   return (
-    <View style={styles.row}>
-      <View style={styles.rowLeft}>
-        {icon}
+    <View style={styles.statCard}>
+      <View style={styles.statIcon}>{icon}</View>
 
-        <AppText variant="body1" style={styles.rowLabel}>
-          {label}
-        </AppText>
-      </View>
+      <AppText variant="label" color="secondary">
+        {label}
+      </AppText>
 
-      <View style={styles.rowRight}>
-        <AppText variant="body2" color="secondary">
-          {value}
-        </AppText>
-
-        <ChevronRight size={18} color={colors.neutral[400]} />
-      </View>
+      <AppText variant="heading2" style={styles.statValue}>
+        {value}
+      </AppText>
     </View>
   );
+}
+
+function formatScheduleDate(dateString: string) {
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  return new Date(year, month - 1, day).toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+function formatRepeat(repeat: CareRepeat) {
+  switch (repeat.unit) {
+    case 'DAY':
+      return repeat.interval === 1 ? '매일' : `${repeat.interval}일마다`;
+
+    case 'WEEK':
+      return repeat.interval === 1 ? '매주' : `${repeat.interval}주마다`;
+
+    case 'MONTH':
+      return repeat.interval === 1 ? '매월' : `${repeat.interval}개월마다`;
+
+    case 'YEAR':
+      return repeat.interval === 1 ? '매년' : `${repeat.interval}년마다`;
+  }
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.neutral[50],
-    paddingTop: 64,
+  },
+
+  content: {
     paddingHorizontal: 20,
+    paddingTop: 64,
+    paddingBottom: 40,
   },
 
-  emptyText: {
-    marginTop: 12,
-  },
-
-  profile: {
-    alignItems: 'center',
-    marginTop: 32,
-    marginBottom: 40,
-  },
-
-  profileImage: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: colors.primary[100],
+  emptyContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.neutral[50],
   },
 
-  name: {
-    marginTop: 16,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
 
-  section: {
-    gap: 4,
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral[0],
+  },
+
+  hero: {
+    position: 'relative',
+    alignItems: 'center',
+    overflow: 'hidden',
+
+    backgroundColor: colors.primary[50],
+
+    borderRadius: 28,
+
+    paddingTop: 12,
+    paddingBottom: 24,
+
+    marginBottom: 32,
+  },
+
+  avatarGlow: {
+    position: 'absolute',
+    top: 45,
+
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+
+    backgroundColor: colors.primary[100],
+  },
+
+  petName: {
+    marginTop: -8,
+  },
+
+  petMeta: {
+    marginTop: 4,
   },
 
   sectionTitle: {
     marginBottom: 12,
   },
 
-  row: {
-    minHeight: 60,
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.neutral[0],
-    paddingHorizontal: 16,
-    borderRadius: 14,
+
+    marginBottom: 12,
   },
 
-  rowLeft: {
+  infoCard: {
+    backgroundColor: colors.neutral[0],
+
+    borderRadius: 18,
+
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+
+    paddingHorizontal: 16,
+
+    marginBottom: 32,
+  },
+
+  infoRow: {
+    minHeight: 56,
+
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
-  rowLabel: {
+  divider: {
+    height: 1,
+    backgroundColor: colors.neutral[100],
+  },
+
+  stats: {
+    flexDirection: 'row',
+    gap: 10,
+
+    marginBottom: 32,
+  },
+
+  statCard: {
+    flex: 1,
+
+    minHeight: 120,
+
+    backgroundColor: colors.neutral[0],
+
+    borderRadius: 16,
+
+    padding: 14,
+  },
+
+  statIcon: {
+    width: 36,
+    height: 36,
+
+    borderRadius: 10,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    backgroundColor: colors.primary[100],
+
+    marginBottom: 12,
+  },
+
+  statValue: {
+    marginTop: 4,
+  },
+
+  scheduleList: {
+    gap: 10,
+    marginBottom: 32,
+  },
+
+  scheduleCard: {
+    minHeight: 72,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    backgroundColor: colors.neutral[0],
+
+    borderRadius: 16,
+
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+
+    padding: 14,
+  },
+
+  scheduleIcon: {
+    width: 40,
+    height: 40,
+
+    borderRadius: 12,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    backgroundColor: colors.primary[100],
+  },
+
+  scheduleContent: {
+    flex: 1,
     marginLeft: 12,
   },
 
-  rowRight: {
+  scheduleDate: {
+    marginTop: 4,
+  },
+
+  scheduleRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+
+  repeatBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+
+    borderRadius: 10,
+
+    backgroundColor: colors.primary[50],
+  },
+
+  emptyScheduleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 12,
+
+    backgroundColor: colors.neutral[0],
+
+    borderRadius: 16,
+
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+
+    padding: 16,
+
+    marginBottom: 32,
+  },
+
+  emptyScheduleIcon: {
+    width: 44,
+    height: 44,
+
+    borderRadius: 14,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    backgroundColor: colors.primary[100],
+  },
+
+  emptyDescription: {
+    marginTop: 4,
+  },
+
+  profileEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+
+    backgroundColor: colors.neutral[0],
+
+    borderRadius: 16,
+
+    padding: 16,
+  },
+
+  editContent: {
+    flex: 1,
+    paddingRight: 12,
+  },
+
+  editDescription: {
+    marginTop: 4,
   },
 });
