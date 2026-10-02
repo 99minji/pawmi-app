@@ -40,10 +40,12 @@ export const QuickRecordSheet = forwardRef<BottomSheet, object>(
       {
         label: '투약',
         icon: <Pill size={22} color={colors.primary[700]} />,
+        route: '/record/medication',
       },
       {
         label: '예방',
         icon: <ShieldCheck size={22} color={colors.primary[700]} />,
+        route: '/record/vaccination',
       },
       {
         label: '병원',

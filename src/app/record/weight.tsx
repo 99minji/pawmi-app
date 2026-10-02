@@ -13,6 +13,7 @@ import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
+import { useUiStore } from '@/stores/useUiStore';
 
 export default function WeightRecordScreen() {
   const [weight, setWeight] = useState('');
@@ -21,6 +22,8 @@ export default function WeightRecordScreen() {
   const updatePet = usePetStore((state) => state.updatePet);
 
   const addWeightRecord = useHealthStore((state) => state.addWeightRecord);
+
+  const setAvatarReaction = useUiStore((state) => state.setAvatarReaction);
 
   const numericWeight = Number(weight);
 
@@ -39,6 +42,8 @@ export default function WeightRecordScreen() {
     updatePet({
       weightKg: numericWeight,
     });
+
+    setAvatarReaction('care');
 
     router.back();
   };

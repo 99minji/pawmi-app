@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ImageSourcePropType, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,21 +9,54 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+type AvatarReaction = 'idle' | 'happy' | 'care';
+
 type Props = {
   size?: number;
+  source: ImageSourcePropType;
+  tailSource?: ImageSourcePropType;
+  reaction?: AvatarReaction;
 };
 
-const body = require('../../../assets/avatars/dog/pomeranian/idle-body.png');
-const tail = require('../../../assets/avatars/dog/pomeranian/idle-tail.png');
-
-export function AnimatedPetAvatar({ size = 220 }: Props) {
+export function AnimatedPetAvatar({
+  size = 220,
+  source,
+  tailSource,
+  reaction = 'idle',
+}: Props) {
   const scaleX = useSharedValue(1);
   const scaleY = useSharedValue(1);
   const translateY = useSharedValue(0);
   const tailRotate = useSharedValue(0);
+  const bounceY = useSharedValue(0);
 
+  // care 반응
   useEffect(() => {
-    // 숨쉬기 - 가로
+    if (reaction !== 'care') {
+      bounceY.value = 0;
+      return;
+    }
+
+    bounceY.value = withSequence(
+      withTiming(-14, {
+        duration: 180,
+        easing: Easing.out(Easing.ease),
+      }),
+      withTiming(0, {
+        duration: 220,
+        easing: Easing.in(Easing.ease),
+      }),
+      withTiming(-7, {
+        duration: 130,
+      }),
+      withTiming(0, {
+        duration: 160,
+      }),
+    );
+  }, [bounceY, reaction]);
+
+  // 기본 idle 애니메이션
+  useEffect(() => {
     scaleX.value = withRepeat(
       withSequence(
         withTiming(1.015, {
@@ -39,7 +72,6 @@ export function AnimatedPetAvatar({ size = 220 }: Props) {
       false,
     );
 
-    // 숨쉬기 - 세로
     scaleY.value = withRepeat(
       withSequence(
         withTiming(1.03, {
@@ -55,7 +87,6 @@ export function AnimatedPetAvatar({ size = 220 }: Props) {
       false,
     );
 
-    // 아주 살짝 위아래 움직임
     translateY.value = withRepeat(
       withSequence(
         withTiming(-3, {
@@ -71,7 +102,7 @@ export function AnimatedPetAvatar({ size = 220 }: Props) {
       false,
     );
 
-    // 꼬리 흔들기
+    // 꼬리 파츠가 있을 때만 실제 화면에 보임
     tailRotate.value = withRepeat(
       withSequence(
         withTiming(-7, {
@@ -91,7 +122,7 @@ export function AnimatedPetAvatar({ size = 220 }: Props) {
   const breathingStyle = useAnimatedStyle(() => ({
     transform: [
       {
-        translateY: translateY.value,
+        translateY: translateY.value + bounceY.value,
       },
       {
         scaleX: scaleX.value,
@@ -120,14 +151,16 @@ export function AnimatedPetAvatar({ size = 220 }: Props) {
         },
       ]}
     >
-      <Animated.Image
-        source={tail}
-        resizeMode="contain"
-        style={[styles.tail, tailStyle]}
-      />
+      {tailSource && (
+        <Animated.Image
+          source={tailSource}
+          resizeMode="contain"
+          style={[styles.tail, tailStyle]}
+        />
+      )}
 
       <Animated.Image
-        source={body}
+        source={source}
         resizeMode="contain"
         style={[styles.body, breathingStyle]}
       />

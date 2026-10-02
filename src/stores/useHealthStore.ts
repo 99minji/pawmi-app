@@ -7,9 +7,9 @@ import type { HealthRecord, WeightRecord } from '@/types/health';
 type HealthState = {
   records: HealthRecord[];
 
-  addWeightRecord: (petId: string, weightKg: number) => void;
-
   addRecord: (record: HealthRecord) => void;
+
+  addWeightRecord: (petId: string, weightKg: number) => void;
 
   removeRecord: (id: string) => void;
 };

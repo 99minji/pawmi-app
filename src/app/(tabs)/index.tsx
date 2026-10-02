@@ -2,9 +2,10 @@ import {
   Bell,
   ChevronRight,
   HeartPulse,
-  Pill,
   Plus,
+  ShieldCheck,
 } from 'lucide-react-native';
+import { useMemo, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
@@ -12,14 +13,92 @@ import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { QuickRecordSheet } from '@/components/record/QuickRecordSheet';
 import { colors } from '@/constants/colors';
 import { petAvatars } from '@/constants/petAvatars';
+import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
+import type { CareSchedule } from '@/types/care';
 import { formatGender, formatPetAge } from '@/utils/pet';
 import BottomSheet from '@gorhom/bottom-sheet';
-import { useMemo, useRef } from 'react';
 
 export default function TodayScreen() {
   const pet = usePetStore((state) => state.pet);
+
+  const allRecords = useHealthStore((state) => state.records);
+
+  const addRecord = useHealthStore((state) => state.addRecord);
+
+  const schedules = useCareScheduleStore((state) => state.schedules);
+
+  const completeSchedule = useCareScheduleStore(
+    (state) => state.completeSchedule,
+  );
+
+  const quickRecordSheetRef = useRef<BottomSheet>(null);
+
+  /**
+   * 현재 반려동물의 건강 기록
+   */
+  const records = useMemo(
+    () => allRecords.filter((record) => record.petId === pet?.id),
+    [allRecords, pet?.id],
+  );
+
+  /**
+   * 최근 24시간 동안 건강 기록이 있는지
+   *
+   * 있으면 아바타를 care 상태로 보여준다.
+   */
+  const hasRecentCareRecord = useMemo(() => {
+    const DAY = 24 * 60 * 60 * 1000;
+
+    const now = Date.now();
+
+    return records.some((record) => {
+      const createdAt = new Date(record.createdAt).getTime();
+
+      return now - createdAt < DAY;
+    });
+  }, [records]);
+
+  /**
+   * 오늘 날짜
+   *
+   * YYYY-MM-DD
+   */
+  const todayDateString = useMemo(() => {
+    const today = new Date();
+
+    const year = today.getFullYear();
+
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+
+    const day = String(today.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  /**
+   * 오늘 해야 할 관리 일정
+   */
+  const todaySchedules = useMemo(
+    () =>
+      schedules.filter(
+        (schedule) =>
+          schedule.petId === pet?.id &&
+          schedule.dueDate === todayDateString &&
+          !schedule.completedAt,
+      ),
+    [schedules, pet?.id, todayDateString],
+  );
+
+  /**
+   * MVP에서는 우선 첫 일정만 표시
+   */
+  const todaySchedule = todaySchedules[0];
+
+  const openQuickRecordSheet = () => {
+    quickRecordSheetRef.current?.expand();
+  };
 
   if (!pet) {
     return (
@@ -30,20 +109,46 @@ export default function TodayScreen() {
       </View>
     );
   }
-  const avatar =
-    pet.avatarBreed === 'POMERANIAN' ? petAvatars.POMERANIAN.idle : undefined;
 
-  const allRecords = useHealthStore((state) => state.records);
+  /**
+   * 아바타 상태
+   */
+  const avatarSource = hasRecentCareRecord
+    ? petAvatars.POMERANIAN.care
+    : petAvatars.POMERANIAN.idleBody;
 
-  const records = useMemo(
-    () => allRecords.filter((record) => record.petId === pet?.id),
-    [allRecords, pet?.id],
-  );
+  const tailSource = hasRecentCareRecord
+    ? undefined
+    : petAvatars.POMERANIAN.idleTail;
 
-  const quickRecordSheetRef = useRef<BottomSheet>(null);
+  /**
+   * 오늘 할 일 완료
+   *
+   * 1. CareSchedule 완료 처리
+   * 2. 실제 수행 이력을 HealthRecord에 남김
+   */
+  const handleCompleteSchedule = (schedule: CareSchedule) => {
+    const now = new Date().toISOString();
 
-  const openQuickRecordSheet = () => {
-    quickRecordSheetRef.current?.expand();
+    completeSchedule(schedule.id);
+
+    if (schedule.type === 'VACCINATION') {
+      addRecord({
+        id: `vaccination-${Date.now()}`,
+
+        petId: pet.id,
+
+        type: 'VACCINATION',
+
+        title: `${schedule.name} 예방`,
+
+        vaccinationName: schedule.name,
+
+        occurredAt: now,
+
+        createdAt: now,
+      });
+    }
   };
 
   return (
@@ -53,6 +158,7 @@ export default function TodayScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* Hero */}
         <View style={styles.hero}>
           <View style={styles.heroHeader}>
             <View style={styles.heroTitleArea}>
@@ -74,11 +180,11 @@ export default function TodayScreen() {
           <View style={styles.avatarArea}>
             <View style={styles.avatarGlow} />
 
-            {avatar ? (
-              <AnimatedPetAvatar size={220} />
-            ) : (
-              <View style={styles.avatarPlaceholder} />
-            )}
+            <AnimatedPetAvatar
+              size={220}
+              source={avatarSource}
+              tailSource={tailSource}
+            />
           </View>
 
           <View style={styles.petSummary}>
@@ -95,45 +201,55 @@ export default function TodayScreen() {
               </AppText>
             </View>
 
-            <Pressable
-              style={styles.profileButton}
-              onPress={() => {
-                // 나중에 Pet Profile 이동
-              }}
-            >
+            <Pressable style={styles.profileButton}>
               <ChevronRight size={20} color={colors.primary[700]} />
             </Pressable>
           </View>
         </View>
 
+        {/* 오늘 할 일 */}
         <AppText variant="heading2" style={styles.sectionTitle}>
           오늘 할 일
         </AppText>
 
-        <View style={styles.taskCard}>
-          <View style={styles.taskIcon}>
-            <Pill size={20} color={colors.primary[700]} />
-          </View>
+        {todaySchedule ? (
+          <View style={styles.taskCard}>
+            <View style={styles.taskIcon}>
+              <ShieldCheck size={20} color={colors.primary[700]} />
+            </View>
 
-          <View style={styles.taskContent}>
-            <AppText variant="body1">심장사상충 예방하는 날이에요</AppText>
+            <View style={styles.taskContent}>
+              <AppText variant="body1">
+                {todaySchedule.name} 관리하는 날이에요
+              </AppText>
 
-            <AppText
-              variant="label"
-              color="tertiary"
-              style={styles.taskDescription}
+              <AppText
+                variant="label"
+                color="tertiary"
+                style={styles.taskDescription}
+              >
+                오늘 예정
+              </AppText>
+            </View>
+
+            <Pressable
+              style={styles.completeButton}
+              onPress={() => handleCompleteSchedule(todaySchedule)}
             >
-              오늘 예정
+              <AppText variant="label" color="inverse">
+                완료
+              </AppText>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.emptyTaskCard}>
+            <AppText variant="body2" color="secondary">
+              오늘 예정된 관리가 없어요.
             </AppText>
           </View>
+        )}
 
-          <Pressable style={styles.completeButton}>
-            <AppText variant="label" color="inverse">
-              완료
-            </AppText>
-          </Pressable>
-        </View>
-
+        {/* 최근 변화 */}
         <AppText variant="heading2" style={styles.sectionTitle}>
           최근 변화
         </AppText>
@@ -156,6 +272,7 @@ export default function TodayScreen() {
           </View>
         </View>
 
+        {/* 빠른 기록 */}
         <AppText variant="heading2" style={styles.sectionTitle}>
           빠른 기록
         </AppText>
@@ -183,6 +300,7 @@ export default function TodayScreen() {
           <ChevronRight size={20} color={colors.neutral[400]} />
         </Pressable>
 
+        {/* 최근 기록 */}
         <AppText variant="heading2" style={styles.sectionTitle}>
           최근 기록
         </AppText>
@@ -205,6 +323,7 @@ export default function TodayScreen() {
           </View>
         )}
       </ScrollView>
+
       <QuickRecordSheet ref={quickRecordSheetRef} />
     </View>
   );
@@ -231,14 +350,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 64,
     paddingBottom: 40,
-  },
-
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 16,
-    marginBottom: 28,
   },
 
   iconButton: {
@@ -290,18 +401,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[100],
   },
 
-  heroAvatar: {
-    width: 220,
-    height: 220,
-  },
-
-  avatarPlaceholder: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: colors.primary[100],
-  },
-
   petSummary: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -323,17 +422,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary[50],
-  },
-  petImagePlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary[100],
-  },
-
-  petInfo: {
-    flex: 1,
-    marginLeft: 12,
   },
 
   petDescription: {
@@ -370,6 +458,13 @@ const styles = StyleSheet.create({
 
   taskDescription: {
     marginTop: 4,
+  },
+
+  emptyTaskCard: {
+    backgroundColor: colors.neutral[0],
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 28,
   },
 
   completeButton: {

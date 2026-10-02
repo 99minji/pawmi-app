@@ -8,5 +8,7 @@ export const petAvatars = {
     rainy: require('../../assets/avatars/dog/pomeranian/rainy.png'),
     care: require('../../assets/avatars/dog/pomeranian/care.png'),
     rest: require('../../assets/avatars/dog/pomeranian/rest.png'),
+    idleBody: require('../../assets/avatars/dog/pomeranian/idle-body.png'),
+    idleTail: require('../../assets/avatars/dog/pomeranian/idle-tail.png'),
   },
 } as const;

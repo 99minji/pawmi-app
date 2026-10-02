@@ -24,4 +24,19 @@ export type SymptomRecord = BaseHealthRecord & {
   symptom: string;
 };
 
-export type HealthRecord = WeightRecord | SymptomRecord;
+export type MedicationRecord = BaseHealthRecord & {
+  type: 'MEDICATION';
+  medicationName: string;
+  dosageText?: string;
+};
+
+export type VaccinationRecord = BaseHealthRecord & {
+  type: 'VACCINATION';
+  vaccinationName: string;
+};
+
+export type HealthRecord =
+  | WeightRecord
+  | SymptomRecord
+  | MedicationRecord
+  | VaccinationRecord;

@@ -29,13 +29,14 @@ export default function SymptomRecordScreen() {
     }
 
     const now = new Date().toISOString();
+    const symptomText = symptom.trim();
 
     addRecord({
       id: `symptom-${Date.now()}`,
       petId: pet.id,
       type: 'SYMPTOM',
-      title: symptom.trim(),
-      symptom: symptom.trim(),
+      title: symptomText,
+      symptom: symptomText,
       occurredAt: now,
       createdAt: now,
     });

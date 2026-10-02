@@ -1,0 +1,242 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
+
+import { AppText } from '@/components/common/AppText';
+import { PrimaryButton } from '@/components/common/PrimaryButton';
+import { colors } from '@/constants/colors';
+import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
+import { useHealthStore } from '@/stores/useHealthStore';
+import { usePetStore } from '@/stores/usePetStore';
+
+export default function VaccinationRecordScreen() {
+  const [vaccinationName, setVaccinationName] = useState('');
+
+  const [nextDueDate, setNextDueDate] = useState<Date | null>(null);
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const pet = usePetStore((state) => state.pet);
+
+  const addRecord = useHealthStore((state) => state.addRecord);
+  const addSchedule = useCareScheduleStore((state) => state.addSchedule);
+
+  const isValid = vaccinationName.trim().length > 0;
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const toDateString = (date: Date) => {
+    const year = date.getFullYear();
+
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleSave = () => {
+    if (!pet || !isValid) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const name = vaccinationName.trim();
+
+    // 1. 오늘 실제로 한 예방 기록
+    addRecord({
+      id: `vaccination-${Date.now()}`,
+      petId: pet.id,
+      type: 'VACCINATION',
+
+      title: `${name} 예방`,
+
+      vaccinationName: name,
+
+      ...(nextDueDate
+        ? {
+            nextDueDate: toDateString(nextDueDate),
+          }
+        : {}),
+
+      occurredAt: now,
+      createdAt: now,
+    });
+
+    // 2. 다음 예정일이 있으면
+    // 미래 일정도 생성
+    if (nextDueDate) {
+      addSchedule({
+        id: `care-${Date.now()}`,
+        petId: pet.id,
+        type: 'VACCINATION',
+        name,
+        dueDate: toDateString(nextDueDate),
+        createdAt: now,
+      });
+    }
+
+    router.back();
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={styles.content}>
+        <AppText variant="heading1">예방 관리를 기록해볼까요?</AppText>
+
+        <AppText variant="body1" color="secondary" style={styles.description}>
+          다음 관리 예정일도 함께 남겨두면 놓치지 않도록 챙길 수 있어요.
+        </AppText>
+
+        <View style={styles.form}>
+          <View style={styles.field}>
+            <AppText variant="label">예방 항목</AppText>
+
+            <TextInput
+              value={vaccinationName}
+              onChangeText={setVaccinationName}
+              placeholder="예: 심장사상충"
+              placeholderTextColor={colors.neutral[400]}
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.field}>
+            <View style={styles.labelRow}>
+              <AppText variant="label">다음 예정일</AppText>
+
+              <AppText variant="label" color="tertiary">
+                선택
+              </AppText>
+            </View>
+
+            <Pressable
+              style={styles.dateButton}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <AppText
+                variant="body1"
+                color={nextDueDate ? 'primary' : 'tertiary'}
+              >
+                {nextDueDate ? formatDate(nextDueDate) : '날짜를 선택해주세요'}
+              </AppText>
+            </Pressable>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={nextDueDate ?? new Date()}
+                mode="date"
+                locale="ko-KR"
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+
+                  if (selectedDate) {
+                    setNextDueDate(selectedDate);
+                  }
+                }}
+              />
+            )}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.footer}>
+        <PrimaryButton
+          label="예방 기록하기"
+          disabled={!isValid}
+          onPress={handleSave}
+        />
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.neutral[50],
+  },
+
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 80,
+  },
+
+  description: {
+    marginTop: 8,
+    maxWidth: 320,
+  },
+
+  form: {
+    marginTop: 36,
+    gap: 28,
+  },
+
+  field: {
+    gap: 10,
+  },
+
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  input: {
+    height: 56,
+
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+
+    borderRadius: 14,
+
+    backgroundColor: colors.neutral[0],
+
+    paddingHorizontal: 16,
+
+    fontFamily: 'Pretendard-Regular',
+
+    fontSize: 16,
+
+    color: colors.neutral[900],
+  },
+
+  dateButton: {
+    height: 56,
+
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+
+    borderRadius: 14,
+
+    backgroundColor: colors.neutral[0],
+
+    paddingHorizontal: 16,
+
+    justifyContent: 'center',
+  },
+
+  footer: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+});
