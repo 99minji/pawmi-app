@@ -5,8 +5,55 @@ import { colors } from '@/constants/colors';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
 import { HealthRecord } from '@/types/health';
-import { HeartPulse, Scale } from 'lucide-react-native';
+import {
+  HeartPulse,
+  Hospital,
+  Pill,
+  Scale,
+  ShieldCheck,
+} from 'lucide-react-native';
 import { useMemo } from 'react';
+
+const renderRecordMeta = (record: HealthRecord) => {
+  switch (record.type) {
+    case 'WEIGHT':
+      return `${record.weightKg}kg`;
+
+    case 'SYMPTOM':
+      return record.symptom;
+
+    case 'MEDICATION':
+      return record.dosageText ?? '복용 정보 없음';
+
+    case 'VACCINATION':
+      return record.vaccinationName;
+
+    case 'VET_VISIT':
+      return record.visitReason;
+
+    default:
+      return '';
+  }
+};
+
+const renderRecordIcon = (record: HealthRecord) => {
+  switch (record.type) {
+    case 'WEIGHT':
+      return <Scale size={20} color={colors.primary[700]} />;
+
+    case 'SYMPTOM':
+      return <HeartPulse size={20} color={colors.primary[700]} />;
+
+    case 'MEDICATION':
+      return <Pill size={20} color={colors.primary[700]} />;
+
+    case 'VACCINATION':
+      return <ShieldCheck size={20} color={colors.primary[700]} />;
+
+    case 'VET_VISIT':
+      return <Hospital size={20} color={colors.primary[700]} />;
+  }
+};
 
 export default function HealthScreen() {
   const pet = usePetStore((state) => state.pet);
@@ -37,16 +84,18 @@ export default function HealthScreen() {
       ) : (
         <View style={styles.list}>
           {records.map((record) => (
-            <View key={record.id} style={styles.record}>
-              <View style={styles.icon}>
-                <RecordIcon type={record.type} />
-              </View>
+            <View key={record.id} style={styles.timelineItem}>
+              <View style={styles.iconBox}>{renderRecordIcon(record)}</View>
 
-              <View style={styles.recordContent}>
+              <View style={styles.timelineContent}>
                 <AppText variant="body1">{record.title}</AppText>
 
-                <AppText variant="body2" color="secondary" style={styles.date}>
-                  {formatDate(record.occurredAt)}
+                <AppText variant="body2" color="secondary" style={styles.meta}>
+                  {renderRecordMeta(record)}
+                </AppText>
+
+                <AppText variant="label" color="tertiary" style={styles.date}>
+                  {new Date(record.occurredAt).toLocaleDateString('ko-KR')}
                 </AppText>
               </View>
             </View>
@@ -100,17 +149,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
-  record: {
+  timelineItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 12,
     padding: 16,
     borderRadius: 16,
+    backgroundColor: colors.neutral[0],
     borderWidth: 1,
     borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
   },
 
-  icon: {
+  iconBox: {
     width: 40,
     height: 40,
     borderRadius: 12,
@@ -119,11 +168,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[100],
   },
 
-  recordContent: {
-    marginLeft: 12,
+  timelineContent: {
+    flex: 1,
+  },
+
+  meta: {
+    marginTop: 4,
   },
 
   date: {
-    marginTop: 4,
+    marginTop: 8,
   },
 });

@@ -2,6 +2,8 @@ import {
   Bell,
   ChevronRight,
   HeartPulse,
+  Hospital,
+  Pill,
   Plus,
   ShieldCheck,
 } from 'lucide-react-native';
@@ -17,8 +19,45 @@ import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
 import type { CareSchedule } from '@/types/care';
+import { addRepeatToDate } from '@/utils/care';
+import { getHealthInsight } from '@/utils/healthInsight';
 import { formatGender, formatPetAge } from '@/utils/pet';
 import BottomSheet from '@gorhom/bottom-sheet';
+
+const renderScheduleIcon = (type: CareSchedule['type']) => {
+  switch (type) {
+    case 'VACCINATION':
+      return <ShieldCheck size={20} color={colors.primary[700]} />;
+
+    case 'MEDICATION':
+      return <Pill size={20} color={colors.primary[700]} />;
+
+    case 'HEARTWORM':
+      return <HeartPulse size={20} color={colors.primary[700]} />;
+
+    case 'CHECKUP':
+      return <Hospital size={20} color={colors.primary[700]} />;
+  }
+};
+
+const getScheduleTitle = (schedule: CareSchedule) => {
+  switch (schedule.type) {
+    case 'VACCINATION':
+      return `${schedule.name} 예방하는 날이에요`;
+
+    case 'MEDICATION':
+      return `${schedule.name} 먹이는 날이에요`;
+
+    case 'HEARTWORM':
+      return `${schedule.name} 예방하는 날이에요`;
+
+    case 'CHECKUP':
+      return `${schedule.name} 확인하는 날이에요`;
+
+    default:
+      return `${schedule.name} 관리하는 날이에요`;
+  }
+};
 
 export default function TodayScreen() {
   const pet = usePetStore((state) => state.pet);
@@ -28,6 +67,8 @@ export default function TodayScreen() {
   const addRecord = useHealthStore((state) => state.addRecord);
 
   const schedules = useCareScheduleStore((state) => state.schedules);
+
+  const addSchedule = useCareScheduleStore((state) => state.addSchedule);
 
   const completeSchedule = useCareScheduleStore(
     (state) => state.completeSchedule,
@@ -42,6 +83,8 @@ export default function TodayScreen() {
     () => allRecords.filter((record) => record.petId === pet?.id),
     [allRecords, pet?.id],
   );
+
+  const healthInsight = useMemo(() => getHealthInsight(records), [records]);
 
   /**
    * 최근 24시간 동안 건강 기록이 있는지
@@ -60,11 +103,6 @@ export default function TodayScreen() {
     });
   }, [records]);
 
-  /**
-   * 오늘 날짜
-   *
-   * YYYY-MM-DD
-   */
   const todayDateString = useMemo(() => {
     const today = new Date();
 
@@ -90,11 +128,6 @@ export default function TodayScreen() {
       ),
     [schedules, pet?.id, todayDateString],
   );
-
-  /**
-   * MVP에서는 우선 첫 일정만 표시
-   */
-  const todaySchedule = todaySchedules[0];
 
   const openQuickRecordSheet = () => {
     quickRecordSheetRef.current?.expand();
@@ -145,6 +178,26 @@ export default function TodayScreen() {
         vaccinationName: schedule.name,
 
         occurredAt: now,
+
+        createdAt: now,
+      });
+    }
+
+    if (schedule.repeat) {
+      const nextDueDate = addRepeatToDate(schedule.dueDate, schedule.repeat);
+
+      addSchedule({
+        id: `care-${Date.now()}`,
+
+        petId: schedule.petId,
+
+        type: schedule.type,
+
+        name: schedule.name,
+
+        dueDate: nextDueDate,
+
+        repeat: schedule.repeat,
 
         createdAt: now,
       });
@@ -212,34 +265,38 @@ export default function TodayScreen() {
           오늘 할 일
         </AppText>
 
-        {todaySchedule ? (
-          <View style={styles.taskCard}>
-            <View style={styles.taskIcon}>
-              <ShieldCheck size={20} color={colors.primary[700]} />
-            </View>
+        {todaySchedules.length > 0 ? (
+          <View style={styles.taskList}>
+            {todaySchedules.map((schedule) => (
+              <View key={schedule.id} style={styles.taskCard}>
+                <View style={styles.taskIcon}>
+                  {renderScheduleIcon(schedule.type)}
+                </View>
 
-            <View style={styles.taskContent}>
-              <AppText variant="body1">
-                {todaySchedule.name} 관리하는 날이에요
-              </AppText>
+                <View style={styles.taskContent}>
+                  <AppText variant="body1">
+                    {getScheduleTitle(schedule)}
+                  </AppText>
 
-              <AppText
-                variant="label"
-                color="tertiary"
-                style={styles.taskDescription}
-              >
-                오늘 예정
-              </AppText>
-            </View>
+                  <AppText
+                    variant="label"
+                    color="tertiary"
+                    style={styles.taskDescription}
+                  >
+                    오늘 예정
+                  </AppText>
+                </View>
 
-            <Pressable
-              style={styles.completeButton}
-              onPress={() => handleCompleteSchedule(todaySchedule)}
-            >
-              <AppText variant="label" color="inverse">
-                완료
-              </AppText>
-            </Pressable>
+                <Pressable
+                  style={styles.completeButton}
+                  onPress={() => handleCompleteSchedule(schedule)}
+                >
+                  <AppText variant="label" color="inverse">
+                    완료
+                  </AppText>
+                </Pressable>
+              </View>
+            ))}
           </View>
         ) : (
           <View style={styles.emptyTaskCard}>
@@ -258,17 +315,31 @@ export default function TodayScreen() {
           <HeartPulse size={22} color={colors.primary[700]} />
 
           <View style={styles.insightContent}>
-            <AppText variant="body1">
-              최근 3개월 동안 체중이 0.3kg 늘었어요
-            </AppText>
+            {healthInsight ? (
+              <>
+                <AppText variant="body1">{healthInsight.title}</AppText>
 
-            <AppText
-              variant="body2"
-              color="secondary"
-              style={styles.insightDescription}
-            >
-              이전 기록과 함께 확인해보세요.
-            </AppText>
+                <AppText
+                  variant="body2"
+                  color="secondary"
+                  style={styles.insightDescription}
+                >
+                  {healthInsight.description}
+                </AppText>
+              </>
+            ) : (
+              <>
+                <AppText variant="body1">아직 확인할 변화가 없어요</AppText>
+
+                <AppText
+                  variant="body2"
+                  color="secondary"
+                  style={styles.insightDescription}
+                >
+                  건강 기록을 쌓으면 변화를 정리해서 보여드릴게요.
+                </AppText>
+              </>
+            )}
           </View>
         </View>
 
@@ -439,6 +510,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[0],
     borderRadius: 16,
     padding: 16,
+  },
+
+  taskList: {
+    gap: 10,
     marginBottom: 28,
   },
 
