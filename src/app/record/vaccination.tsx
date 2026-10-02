@@ -16,6 +16,7 @@ import { colors } from '@/constants/colors';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
+import { scheduleCareNotification } from '@/utils/notification';
 
 type RepeatPreset = 'NONE' | 'MONTHLY' | 'SIX_MONTHS' | 'YEARLY';
 
@@ -32,6 +33,10 @@ export default function VaccinationRecordScreen() {
 
   const addRecord = useHealthStore((state) => state.addRecord);
   const addSchedule = useCareScheduleStore((state) => state.addSchedule);
+
+  const setNotificationId = useCareScheduleStore(
+    (state) => state.setNotificationId,
+  );
 
   const isValid = vaccinationName.trim().length > 0;
 
@@ -80,15 +85,15 @@ export default function VaccinationRecordScreen() {
 
   const repeat = getRepeat();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!pet || !isValid) {
       return;
     }
 
     const now = new Date().toISOString();
+
     const name = vaccinationName.trim();
 
-    // 1. 오늘 실제로 한 예방 기록
     addRecord({
       id: `vaccination-${Date.now()}`,
       petId: pet.id,
@@ -98,28 +103,44 @@ export default function VaccinationRecordScreen() {
 
       vaccinationName: name,
 
-      ...(nextDueDate
-        ? {
-            nextDueDate: toDateString(nextDueDate),
-          }
-        : {}),
-
       occurredAt: now,
+
       createdAt: now,
     });
 
-    // 2. 다음 예정일이 있으면
-    // 미래 일정도 생성
     if (nextDueDate) {
+      const scheduleId = `care-${Date.now()}`;
+
+      const dueDate = toDateString(nextDueDate);
+
+      const repeat = getRepeat();
+
       addSchedule({
-        id: `care-${Date.now()}`,
+        id: scheduleId,
+
         petId: pet.id,
+
         type: 'VACCINATION',
+
         name,
-        dueDate: toDateString(nextDueDate),
+
+        dueDate,
+
         ...(repeat ? { repeat } : {}),
+
         createdAt: now,
       });
+
+      const notificationId = await scheduleCareNotification({
+        scheduleId,
+        petName: pet.name,
+        careName: name,
+        dueDate,
+      });
+
+      if (notificationId) {
+        setNotificationId(scheduleId, notificationId);
+      }
     }
 
     router.back();

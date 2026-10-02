@@ -21,6 +21,10 @@ import { usePetStore } from '@/stores/usePetStore';
 import type { CareSchedule } from '@/types/care';
 import { addRepeatToDate } from '@/utils/care';
 import { getHealthInsight } from '@/utils/healthInsight';
+import {
+  cancelCareNotification,
+  scheduleCareNotification,
+} from '@/utils/notification';
 import { formatGender, formatPetAge } from '@/utils/pet';
 import BottomSheet from '@gorhom/bottom-sheet';
 
@@ -69,6 +73,10 @@ export default function TodayScreen() {
   const schedules = useCareScheduleStore((state) => state.schedules);
 
   const addSchedule = useCareScheduleStore((state) => state.addSchedule);
+
+  const setNotificationId = useCareScheduleStore(
+    (state) => state.setNotificationId,
+  );
 
   const completeSchedule = useCareScheduleStore(
     (state) => state.completeSchedule,
@@ -160,8 +168,10 @@ export default function TodayScreen() {
    * 1. CareSchedule 완료 처리
    * 2. 실제 수행 이력을 HealthRecord에 남김
    */
-  const handleCompleteSchedule = (schedule: CareSchedule) => {
+  const handleCompleteSchedule = async (schedule: CareSchedule) => {
     const now = new Date().toISOString();
+
+    await cancelCareNotification(schedule.notificationId);
 
     completeSchedule(schedule.id);
 
@@ -183,11 +193,14 @@ export default function TodayScreen() {
       });
     }
 
+    // 반복 일정 생성
     if (schedule.repeat) {
       const nextDueDate = addRepeatToDate(schedule.dueDate, schedule.repeat);
 
+      const nextScheduleId = `care-${Date.now()}`;
+
       addSchedule({
-        id: `care-${Date.now()}`,
+        id: nextScheduleId,
 
         petId: schedule.petId,
 
@@ -201,6 +214,20 @@ export default function TodayScreen() {
 
         createdAt: now,
       });
+
+      const notificationId = await scheduleCareNotification({
+        scheduleId: nextScheduleId,
+
+        petName: pet.name,
+
+        careName: schedule.name,
+
+        dueDate: nextDueDate,
+      });
+
+      if (notificationId) {
+        setNotificationId(nextScheduleId, notificationId);
+      }
     }
   };
 

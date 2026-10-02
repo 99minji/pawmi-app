@@ -14,10 +14,18 @@ export type CareRepeat = {
 export type CareSchedule = {
   id: string;
   petId: string;
+
   type: CareScheduleType;
+
   name: string;
+
   dueDate: string;
+
   repeat?: CareRepeat;
+
   completedAt?: string;
+
+  notificationId?: string;
+
   createdAt: string;
 };
