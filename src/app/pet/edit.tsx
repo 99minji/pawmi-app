@@ -15,24 +15,30 @@ import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { colors } from '@/constants/colors';
-import { petAvatars } from '@/constants/petAvatars';
+import { getPetAvatar, petAvatars } from '@/constants/petAvatars';
 import { usePetStore } from '@/stores/usePetStore';
-import type { AvatarBreed, Gender } from '@/types/pet';
+import type { AvatarBreed, Gender, Pet } from '@/types/pet';
+import { parseDateString, toDateString } from '@/utils/date';
 
 export default function PetEditScreen() {
   const pet = usePetStore((state) => state.pet);
-  const updatePet = usePetStore((state) => state.updatePet);
 
   if (!pet) {
     return null;
   }
+
+  return <PetEditForm pet={pet} />;
+}
+
+function PetEditForm({ pet }: { pet: Pet }) {
+  const updatePet = usePetStore((state) => state.updatePet);
 
   const [name, setName] = useState(pet.name);
   const [breed, setBreed] = useState(pet.breed ?? '');
   const [gender, setGender] = useState<Gender>(pet.gender);
 
   const [birthDate, setBirthDate] = useState<Date | null>(
-    pet.birthDate ? new Date(pet.birthDate) : null,
+    pet.birthDate ? parseDateString(pet.birthDate) : null,
   );
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -43,15 +49,7 @@ export default function PetEditScreen() {
 
   const isValid = name.trim().length > 0;
 
-  const toDateString = (date: Date) => {
-    const year = date.getFullYear();
-
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-
-    const day = String(date.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-  };
+  const currentAvatar = getPetAvatar(avatarBreed);
 
   const handleSave = () => {
     if (!isValid) return;
@@ -95,8 +93,8 @@ export default function PetEditScreen() {
         <View style={styles.avatarSection}>
           <AnimatedPetAvatar
             size={190}
-            source={petAvatars.POMERANIAN.idleBody}
-            tailSource={petAvatars.POMERANIAN.idleTail}
+            source={currentAvatar.idleBody}
+            tailSource={currentAvatar.idleTail}
           />
 
           <AppText variant="body2" color="secondary">

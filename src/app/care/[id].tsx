@@ -1,7 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Bell, CalendarDays, Repeat2, Trash2 } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Platform,
@@ -18,12 +18,32 @@ import { colors } from '@/constants/colors';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { usePetStore } from '@/stores/usePetStore';
 import type { CareRepeat, CareSchedule } from '@/types/care';
+import { parseDateString, toDateString } from '@/utils/date';
 import {
   cancelCareNotification,
   scheduleCareNotification,
 } from '@/utils/notification';
 
-type RepeatPreset = 'NONE' | 'MONTHLY' | 'SIX_MONTHS' | 'YEARLY';
+type RepeatPreset = 'NONE' | 'MONTHLY' | 'SIX_MONTHS' | 'YEARLY' | 'CUSTOM';
+
+const REPEAT_OPTIONS: { label: string; value: RepeatPreset }[] = [
+  {
+    label: '반복 없음',
+    value: 'NONE',
+  },
+  {
+    label: '매월',
+    value: 'MONTHLY',
+  },
+  {
+    label: '6개월마다',
+    value: 'SIX_MONTHS',
+  },
+  {
+    label: '매년',
+    value: 'YEARLY',
+  },
+];
 
 export default function CareDetailScreen() {
   const { id } = useLocalSearchParams<{
@@ -32,43 +52,11 @@ export default function CareDetailScreen() {
 
   const pet = usePetStore((state) => state.pet);
 
-  const schedules = useCareScheduleStore((state) => state.schedules);
-
-  const updateSchedule = useCareScheduleStore((state) => state.updateSchedule);
-
-  const removeSchedule = useCareScheduleStore((state) => state.removeSchedule);
-
-  const setNotificationId = useCareScheduleStore(
-    (state) => state.setNotificationId,
+  const schedule = useCareScheduleStore((state) =>
+    state.schedules.find((item) => item.id === id),
   );
 
-  const schedule = useMemo(
-    () => schedules.find((item) => item.id === id),
-    [schedules, id],
-  );
-
-  const initialDate = useMemo(() => {
-    if (!schedule) {
-      return new Date();
-    }
-
-    const [year, month, day] = schedule.dueDate.split('-').map(Number);
-
-    return new Date(year, month - 1, day);
-  }, [schedule]);
-
-  const [dueDate, setDueDate] = useState(initialDate);
-
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>(
-    getRepeatPreset(schedule?.repeat),
-  );
-
-  const [notificationEnabled, setNotificationEnabled] = useState(
-    schedule?.notificationEnabled ?? true,
-  );
-
+  // 스토어 hydration 전에는 schedule이 없으므로, 준비된 뒤에 폼을 마운트해 초기값을 맞춘다.
   if (!schedule || !pet) {
     return (
       <View style={styles.emptyContainer}>
@@ -79,44 +67,99 @@ export default function CareDetailScreen() {
     );
   }
 
+  return (
+    <CareDetailForm key={schedule.id} schedule={schedule} petName={pet.name} />
+  );
+}
+
+function CareDetailForm({
+  schedule,
+  petName,
+}: {
+  schedule: CareSchedule;
+  petName: string;
+}) {
+  const updateSchedule = useCareScheduleStore((state) => state.updateSchedule);
+
+  const removeSchedule = useCareScheduleStore((state) => state.removeSchedule);
+
+  const [dueDate, setDueDate] = useState(() =>
+    parseDateString(schedule.dueDate),
+  );
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>(() =>
+    getRepeatPreset(schedule.repeat),
+  );
+
+  const [notificationEnabled, setNotificationEnabled] = useState(
+    schedule.notificationEnabled ?? true,
+  );
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  // 프리셋에 없는 기존 반복 설정은 저장 시 사라지지 않도록 유지 옵션으로 노출한다.
+  const repeatOptions =
+    getRepeatPreset(schedule.repeat) === 'CUSTOM'
+      ? [
+          {
+            label: '기존 설정 유지',
+            value: 'CUSTOM' as const,
+          },
+          ...REPEAT_OPTIONS,
+        ]
+      : REPEAT_OPTIONS;
+
   const handleSave = async () => {
-    const dueDateString = toDateString(dueDate);
-
-    const repeat = getRepeat(repeatPreset);
-
-    // 기존 예약 제거
-    if (schedule.notificationId) {
-      await cancelCareNotification(schedule.notificationId);
+    if (isSaving) {
+      return;
     }
 
-    let nextNotificationId: string | undefined;
+    setIsSaving(true);
 
-    // 새 알림 예약
-    if (notificationEnabled) {
-      const notificationId = await scheduleCareNotification({
-        scheduleId: schedule.id,
+    try {
+      const dueDateString = toDateString(dueDate);
 
-        petName: pet.name,
+      const repeat =
+        repeatPreset === 'CUSTOM' ? schedule.repeat : getRepeat(repeatPreset);
 
-        careName: schedule.name,
+      // 기존 예약 제거
+      await cancelCareNotification(schedule.notificationId);
 
+      let nextNotificationId: string | undefined;
+
+      // 새 알림 예약
+      if (notificationEnabled) {
+        const notificationId = await scheduleCareNotification({
+          scheduleId: schedule.id,
+
+          petName,
+
+          careName: schedule.name,
+
+          dueDate: dueDateString,
+        });
+
+        nextNotificationId = notificationId ?? undefined;
+      }
+
+      updateSchedule(schedule.id, {
         dueDate: dueDateString,
+
+        repeat,
+
+        notificationEnabled,
+
+        notificationId: nextNotificationId,
       });
 
-      nextNotificationId = notificationId ?? undefined;
+      router.back();
+    } catch {
+      Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
+
+      setIsSaving(false);
     }
-
-    updateSchedule(schedule.id, {
-      dueDate: dueDateString,
-
-      repeat,
-
-      notificationEnabled,
-
-      notificationId: nextNotificationId,
-    });
-
-    router.back();
   };
 
   const handleDelete = () => {
@@ -129,13 +172,14 @@ export default function CareDetailScreen() {
         text: '삭제',
         style: 'destructive',
         onPress: async () => {
-          if (schedule.notificationId) {
-            await cancelCareNotification(schedule.notificationId);
-          }
-
-          removeSchedule(schedule.id);
-
+          // 삭제 후 빈 화면이 잠깐 보이지 않도록 먼저 화면을 닫는다.
           router.back();
+
+          try {
+            await cancelCareNotification(schedule.notificationId);
+          } finally {
+            removeSchedule(schedule.id);
+          }
         },
       },
     ]);
@@ -228,30 +272,13 @@ export default function CareDetailScreen() {
           </View>
 
           <View style={styles.repeatOptions}>
-            {[
-              {
-                label: '반복 없음',
-                value: 'NONE',
-              },
-              {
-                label: '매월',
-                value: 'MONTHLY',
-              },
-              {
-                label: '6개월마다',
-                value: 'SIX_MONTHS',
-              },
-              {
-                label: '매년',
-                value: 'YEARLY',
-              },
-            ].map((item) => {
+            {repeatOptions.map((item) => {
               const selected = repeatPreset === item.value;
 
               return (
                 <Pressable
                   key={item.value}
-                  onPress={() => setRepeatPreset(item.value as RepeatPreset)}
+                  onPress={() => setRepeatPreset(item.value)}
                   style={[
                     styles.repeatOption,
 
@@ -321,20 +348,14 @@ export default function CareDetailScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton label="변경사항 저장하기" onPress={handleSave} />
+        <PrimaryButton
+          label="변경사항 저장하기"
+          disabled={isSaving}
+          onPress={handleSave}
+        />
       </View>
     </View>
   );
-}
-
-function toDateString(date: Date) {
-  const year = date.getFullYear();
-
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
 }
 
 function formatDate(date: Date) {
@@ -362,7 +383,7 @@ function getRepeatPreset(repeat?: CareRepeat): RepeatPreset {
     return 'YEARLY';
   }
 
-  return 'NONE';
+  return 'CUSTOM';
 }
 
 function getRepeat(preset: RepeatPreset): CareRepeat | undefined {

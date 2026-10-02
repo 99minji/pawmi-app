@@ -1,5 +1,3 @@
-type PetAvatarState = 'idle' | 'happy' | 'sick' | 'rainy' | 'care' | 'rest';
-
 import type { AvatarBreed } from '@/types/pet';
 
 export const petAvatars = {

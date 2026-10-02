@@ -16,6 +16,7 @@ import { colors } from '@/constants/colors';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
+import { toDateString } from '@/utils/date';
 import { scheduleCareNotification } from '@/utils/notification';
 
 type RepeatPreset = 'NONE' | 'MONTHLY' | 'SIX_MONTHS' | 'YEARLY';
@@ -46,16 +47,6 @@ export default function VaccinationRecordScreen() {
     });
   };
 
-  const toDateString = (date: Date) => {
-    const year = date.getFullYear();
-
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-
-    const day = String(date.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-  };
-
   const getRepeat = () => {
     switch (repeatPreset) {
       case 'MONTHLY':
@@ -80,8 +71,6 @@ export default function VaccinationRecordScreen() {
         return undefined;
     }
   };
-
-  const repeat = getRepeat();
 
   const handleSave = async () => {
     if (!pet || !isValid) {

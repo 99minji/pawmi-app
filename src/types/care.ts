@@ -23,7 +23,6 @@ export type CareSchedule = {
   repeat?: CareRepeat;
 
   notificationEnabled?: boolean;
-  notificationTime?: string;
   notificationId?: string;
 
   completedAt?: string;

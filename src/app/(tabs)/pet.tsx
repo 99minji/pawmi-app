@@ -17,6 +17,7 @@ import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
 import type { CareRepeat } from '@/types/care';
+import { parseDateString } from '@/utils/date';
 import { formatGender, formatPetAge } from '@/utils/pet';
 
 export default function PetScreen() {
@@ -45,11 +46,7 @@ export default function PetScreen() {
           return false;
         }
 
-        const [year, month, day] = schedule.dueDate.split('-').map(Number);
-
-        const dueDate = new Date(year, month - 1, day);
-
-        return dueDate >= today;
+        return parseDateString(schedule.dueDate) >= today;
       })
       .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   }, [schedules, pet]);
@@ -58,7 +55,7 @@ export default function PetScreen() {
     return (
       <View style={styles.emptyContainer}>
         <AppText variant="body1" color="secondary">
-          반려동물 정보를 불러오고 있어요.
+          등록된 반려동물이 없어요.
         </AppText>
       </View>
     );
@@ -82,7 +79,7 @@ export default function PetScreen() {
 
         <Pressable
           style={styles.editButton}
-          onPress={() => router.push('/pet/edit' as never)}
+          onPress={() => router.push('/pet/edit')}
         >
           <Pencil size={18} color={colors.primary[700]} />
         </Pressable>
@@ -103,7 +100,7 @@ export default function PetScreen() {
         </AppText>
 
         <AppText variant="body2" color="secondary" style={styles.petMeta}>
-          {pet.breed ?? '포메라니안'} · {formatPetAge(pet)} ·{' '}
+          {pet.breed ?? '품종 미등록'} · {formatPetAge(pet)} ·{' '}
           {formatGender(pet.gender)}
         </AppText>
       </View>
@@ -118,7 +115,7 @@ export default function PetScreen() {
 
         <Divider />
 
-        <InfoRow label="품종" value={pet.breed ?? '포메라니안'} />
+        <InfoRow label="품종" value={pet.breed ?? '품종 미등록'} />
 
         <Divider />
 
@@ -157,14 +154,6 @@ export default function PetScreen() {
       {/* 예정된 관리 */}
       <View style={styles.sectionHeader}>
         <AppText variant="heading2">예정된 관리</AppText>
-
-        {upcomingSchedules.length > 5 && (
-          <Pressable>
-            <AppText variant="label" color="brand">
-              전체 보기
-            </AppText>
-          </Pressable>
-        )}
       </View>
 
       {upcomingSchedules.length > 0 ? (
@@ -235,7 +224,7 @@ export default function PetScreen() {
       {/* 프로필 수정 */}
       <Pressable
         style={styles.profileEditRow}
-        onPress={() => router.push('/pet/edit' as never)}
+        onPress={() => router.push('/pet/edit')}
       >
         <View style={styles.editContent}>
           <AppText variant="body1">프로필 수정</AppText>
@@ -296,9 +285,7 @@ function StatCard({
 }
 
 function formatScheduleDate(dateString: string) {
-  const [year, month, day] = dateString.split('-').map(Number);
-
-  return new Date(year, month - 1, day).toLocaleDateString('ko-KR', {
+  return parseDateString(dateString).toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
