@@ -50,6 +50,7 @@ export const QuickRecordSheet = forwardRef<BottomSheet, object>(
       {
         label: '병원',
         icon: <Hospital size={22} color={colors.primary[700]} />,
+        route: '/record/vet-visit',
       },
     ];
 

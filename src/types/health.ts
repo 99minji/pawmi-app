@@ -35,8 +35,15 @@ export type VaccinationRecord = BaseHealthRecord & {
   vaccinationName: string;
 };
 
+export type VetVisitRecord = BaseHealthRecord & {
+  type: 'VET_VISIT';
+  clinicName?: string;
+  visitReason: string;
+};
+
 export type HealthRecord =
   | WeightRecord
   | SymptomRecord
   | MedicationRecord
-  | VaccinationRecord;
+  | VaccinationRecord
+  | VetVisitRecord;
