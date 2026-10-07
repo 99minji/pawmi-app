@@ -28,6 +28,17 @@ function isWithinDays(dateString: string, days: number) {
   return now - targetTime <= days * DAY;
 }
 
+/**
+ * 최근 24시간 안에 작성된 기록이 있는지
+ */
+export function hasRecentRecord(records: HealthRecord[]) {
+  const now = Date.now();
+
+  return records.some(
+    (record) => now - new Date(record.createdAt).getTime() < DAY,
+  );
+}
+
 export function getHealthInsight(records: HealthRecord[]): HealthInsight {
   if (records.length === 0) {
     return null;

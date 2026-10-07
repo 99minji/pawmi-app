@@ -20,9 +20,11 @@ import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
 import type { CareSchedule } from '@/types/care';
 import { addRepeatToDate } from '@/utils/care';
-import { getHealthInsight } from '@/utils/healthInsight';
+import { getHealthInsight, hasRecentRecord } from '@/utils/healthInsight';
+import { createId } from '@/utils/id';
 import {
   cancelCareNotification,
+  DEFAULT_NOTIFICATION_TIME,
   scheduleCareNotification,
 } from '@/utils/notification';
 import { formatGender, formatPetAge } from '@/utils/pet';
@@ -74,9 +76,7 @@ export default function TodayScreen() {
 
   const addSchedule = useCareScheduleStore((state) => state.addSchedule);
 
-  const setNotificationId = useCareScheduleStore(
-    (state) => state.setNotificationId,
-  );
+  const updateSchedule = useCareScheduleStore((state) => state.updateSchedule);
 
   const completeSchedule = useCareScheduleStore(
     (state) => state.completeSchedule,
@@ -99,17 +99,10 @@ export default function TodayScreen() {
    *
    * 있으면 아바타를 care 상태로 보여준다.
    */
-  const hasRecentCareRecord = useMemo(() => {
-    const DAY = 24 * 60 * 60 * 1000;
-
-    const now = Date.now();
-
-    return records.some((record) => {
-      const createdAt = new Date(record.createdAt).getTime();
-
-      return now - createdAt < DAY;
-    });
-  }, [records]);
+  const hasRecentCareRecord = useMemo(
+    () => hasRecentRecord(records),
+    [records],
+  );
 
   const todayDateString = useMemo(() => {
     const today = new Date();
@@ -141,6 +134,82 @@ export default function TodayScreen() {
     quickRecordSheetRef.current?.expand();
   };
 
+  /**
+   * 오늘 할 일 완료
+   *
+   * 1. CareSchedule 완료 처리
+   * 2. 실제 수행 이력을 HealthRecord에 남김
+   * 3. 반복 일정이면 다음 일정과 알림을 등록
+   */
+  const handleCompleteSchedule = async (schedule: CareSchedule) => {
+    if (!pet) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+
+    completeSchedule(schedule.id);
+
+    try {
+      await cancelCareNotification(schedule.notificationId);
+    } catch (error) {
+      console.warn('알림 취소에 실패했어요.', error);
+    }
+
+    if (schedule.type === 'VACCINATION') {
+      addRecord({
+        id: createId('vaccination'),
+        petId: pet.id,
+        type: 'VACCINATION',
+        title: `${schedule.name} 예방`,
+        vaccinationName: schedule.name,
+        occurredAt: now,
+        createdAt: now,
+      });
+    }
+
+    if (!schedule.repeat) {
+      return;
+    }
+
+    const nextDueDate = addRepeatToDate(schedule.dueDate, schedule.repeat);
+
+    const nextScheduleId = createId('care');
+
+    const notificationEnabled = schedule.notificationEnabled ?? true;
+
+    const notificationTime =
+      schedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME;
+
+    addSchedule({
+      id: nextScheduleId,
+      petId: schedule.petId,
+      type: schedule.type,
+      name: schedule.name,
+      dueDate: nextDueDate,
+      repeat: schedule.repeat,
+      notificationEnabled,
+      notificationTime,
+      createdAt: now,
+    });
+
+    if (!notificationEnabled) {
+      return;
+    }
+
+    const notificationId = await scheduleCareNotification({
+      scheduleId: nextScheduleId,
+      petName: pet.name,
+      careName: schedule.name,
+      dueDate: nextDueDate,
+      notificationTime,
+    });
+
+    if (notificationId) {
+      updateSchedule(nextScheduleId, { notificationId });
+    }
+  };
+
   if (!pet) {
     return (
       <View style={styles.emptyContainer}>
@@ -161,75 +230,6 @@ export default function TodayScreen() {
   const tailSource = hasRecentCareRecord
     ? undefined
     : petAvatars.POMERANIAN.idleTail;
-
-  /**
-   * 오늘 할 일 완료
-   *
-   * 1. CareSchedule 완료 처리
-   * 2. 실제 수행 이력을 HealthRecord에 남김
-   */
-  const handleCompleteSchedule = async (schedule: CareSchedule) => {
-    const now = new Date().toISOString();
-
-    await cancelCareNotification(schedule.notificationId);
-
-    completeSchedule(schedule.id);
-
-    if (schedule.type === 'VACCINATION') {
-      addRecord({
-        id: `vaccination-${Date.now()}`,
-
-        petId: pet.id,
-
-        type: 'VACCINATION',
-
-        title: `${schedule.name} 예방`,
-
-        vaccinationName: schedule.name,
-
-        occurredAt: now,
-
-        createdAt: now,
-      });
-    }
-
-    // 반복 일정 생성
-    if (schedule.repeat) {
-      const nextDueDate = addRepeatToDate(schedule.dueDate, schedule.repeat);
-
-      const nextScheduleId = `care-${Date.now()}`;
-
-      addSchedule({
-        id: nextScheduleId,
-
-        petId: schedule.petId,
-
-        type: schedule.type,
-
-        name: schedule.name,
-
-        dueDate: nextDueDate,
-
-        repeat: schedule.repeat,
-
-        createdAt: now,
-      });
-
-      const notificationId = await scheduleCareNotification({
-        scheduleId: nextScheduleId,
-
-        petName: pet.name,
-
-        careName: schedule.name,
-
-        dueDate: nextDueDate,
-      });
-
-      if (notificationId) {
-        setNotificationId(nextScheduleId, notificationId);
-      }
-    }
-  };
 
   return (
     <View style={styles.screen}>

@@ -36,11 +36,14 @@ export async function requestNotificationPermission() {
   return status === 'granted';
 }
 
+export const DEFAULT_NOTIFICATION_TIME = '09:00';
+
 type ScheduleCareNotificationParams = {
   scheduleId: string;
   petName: string;
   careName: string;
   dueDate: string;
+  notificationTime?: string;
 };
 
 export async function scheduleCareNotification({
@@ -48,10 +51,12 @@ export async function scheduleCareNotification({
   petName,
   careName,
   dueDate,
+  notificationTime = DEFAULT_NOTIFICATION_TIME,
 }: ScheduleCareNotificationParams) {
   const [year, month, day] = dueDate.split('-').map(Number);
+  const [hour, minute] = notificationTime.split(':').map(Number);
 
-  const triggerDate = new Date(year, month - 1, day, 9, 0, 0);
+  const triggerDate = new Date(year, month - 1, day, hour, minute, 0);
 
   if (triggerDate.getTime() <= Date.now()) {
     return null;

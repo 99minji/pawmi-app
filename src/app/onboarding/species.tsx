@@ -7,8 +7,6 @@ import { colors } from '@/constants/colors';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { router } from 'expo-router';
 
-type Species = 'DOG' | 'CAT';
-
 export default function SpeciesScreen() {
   const species = useOnboardingStore((state) => state.species);
   const setSpecies = useOnboardingStore((state) => state.setSpecies);

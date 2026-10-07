@@ -106,22 +106,6 @@ export default function HealthScreen() {
   );
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date(value));
-}
-
-function RecordIcon({ type }: { type: HealthRecord['type'] }) {
-  if (type === 'SYMPTOM') {
-    return <HeartPulse size={20} color={colors.primary[700]} />;
-  }
-
-  return <Scale size={20} color={colors.primary[700]} />;
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

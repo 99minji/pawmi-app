@@ -14,8 +14,6 @@ type CareScheduleState = {
   completeSchedule: (id: string) => void;
 
   removeSchedule: (id: string) => void;
-
-  setNotificationId: (id: string, notificationId: string) => void;
 };
 
 export const useCareScheduleStore = create<CareScheduleState>()(
@@ -43,18 +41,6 @@ export const useCareScheduleStore = create<CareScheduleState>()(
       removeSchedule: (id) =>
         set((state) => ({
           schedules: state.schedules.filter((schedule) => schedule.id !== id),
-        })),
-
-      setNotificationId: (id, notificationId) =>
-        set((state) => ({
-          schedules: state.schedules.map((schedule) =>
-            schedule.id === id
-              ? {
-                  ...schedule,
-                  notificationId,
-                }
-              : schedule,
-          ),
         })),
 
       updateSchedule: (id, updates) =>
