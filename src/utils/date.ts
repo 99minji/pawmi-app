@@ -16,3 +16,38 @@ export function parseDateString(dateString: string) {
 
   return new Date(year, month - 1, day);
 }
+
+export function formatKoreanDate(date: Date) {
+  return date.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+// 'HH:mm' 문자열 <-> 오늘 날짜 기준 Date 변환
+
+export function parseTimeString(timeString: string) {
+  const [hour, minute] = timeString.split(':').map(Number);
+
+  const date = new Date();
+
+  date.setHours(hour, minute, 0, 0);
+
+  return date;
+}
+
+export function toTimeString(date: Date) {
+  const hour = String(date.getHours()).padStart(2, '0');
+
+  const minute = String(date.getMinutes()).padStart(2, '0');
+
+  return `${hour}:${minute}`;
+}
+
+export function formatKoreanTime(timeString: string) {
+  return parseTimeString(timeString).toLocaleTimeString('ko-KR', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}

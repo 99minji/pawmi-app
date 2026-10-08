@@ -63,3 +63,61 @@ export async function createCareSchedule(input: CreateCareScheduleInput) {
 
   return mapCareScheduleFromDb(data);
 }
+
+type UpdateCareScheduleInput = {
+  name: string;
+  dueDate: string;
+  repeat?: CareRepeat;
+};
+
+export async function updateCareScheduleById(
+  id: string,
+  input: UpdateCareScheduleInput,
+) {
+  const { data, error } = await supabase
+    .from('care_schedules')
+    .update({
+      name: input.name,
+      due_date: input.dueDate,
+
+      repeat_unit: input.repeat?.unit ?? null,
+
+      repeat_interval: input.repeat?.interval ?? null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapCareScheduleFromDb(data);
+}
+
+export async function completeCareScheduleById(id: string) {
+  const completedAt = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from('care_schedules')
+    .update({
+      completed_at: completedAt,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapCareScheduleFromDb(data);
+}
+
+export async function deleteCareScheduleById(id: string) {
+  const { error } = await supabase.from('care_schedules').delete().eq('id', id);
+
+  if (error) {
+    throw error;
+  }
+}

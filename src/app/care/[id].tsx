@@ -12,43 +12,44 @@ import {
   View,
 } from 'react-native';
 
+import { RepeatSelector } from '@/components/care/RepeatSelector';
+import { SettingCard } from '@/components/care/SettingCard';
 import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
+import {
+  completeCareScheduleById,
+  createCareSchedule,
+  deleteCareScheduleById,
+  updateCareScheduleById,
+} from '@/services/care';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { usePetStore } from '@/stores/usePetStore';
-import type { CareRepeat, CareSchedule } from '@/types/care';
-import { parseDateString, toDateString } from '@/utils/date';
+import type { CareSchedule } from '@/types/care';
+import {
+  addRepeatToDate,
+  formatScheduleType,
+  getRepeatFromPreset,
+  getRepeatPreset,
+  REPEAT_OPTIONS,
+  type RepeatPreset,
+} from '@/utils/care';
+import {
+  formatKoreanDate,
+  formatKoreanTime,
+  parseDateString,
+  parseTimeString,
+  toDateString,
+  toTimeString,
+} from '@/utils/date';
 import {
   cancelCareNotification,
+  DEFAULT_NOTIFICATION_TIME,
   scheduleCareNotification,
 } from '@/utils/notification';
 
-type RepeatPreset = 'NONE' | 'MONTHLY' | 'SIX_MONTHS' | 'YEARLY' | 'CUSTOM';
-
-const REPEAT_OPTIONS: { label: string; value: RepeatPreset }[] = [
-  {
-    label: '반복 없음',
-    value: 'NONE',
-  },
-  {
-    label: '매월',
-    value: 'MONTHLY',
-  },
-  {
-    label: '6개월마다',
-    value: 'SIX_MONTHS',
-  },
-  {
-    label: '매년',
-    value: 'YEARLY',
-  },
-];
-
 export default function CareDetailScreen() {
-  const { id } = useLocalSearchParams<{
-    id: string;
-  }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
 
   const pet = usePetStore((state) => state.pet);
 
@@ -79,15 +80,21 @@ function CareDetailForm({
   schedule: CareSchedule;
   petName: string;
 }) {
-  const updateSchedule = useCareScheduleStore((state) => state.updateSchedule);
+  const addScheduleFromDb = useCareScheduleStore(
+    (state) => state.addScheduleFromDb,
+  );
 
-  const removeSchedule = useCareScheduleStore((state) => state.removeSchedule);
+  const replaceSchedule = useCareScheduleStore(
+    (state) => state.replaceSchedule,
+  );
+
+  const removeScheduleFromStore = useCareScheduleStore(
+    (state) => state.removeScheduleFromStore,
+  );
 
   const [dueDate, setDueDate] = useState(() =>
     parseDateString(schedule.dueDate),
   );
-
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>(() =>
     getRepeatPreset(schedule.repeat),
@@ -98,96 +105,120 @@ function CareDetailForm({
   );
 
   const [notificationTime, setNotificationTime] = useState(
-    schedule.notificationTime ?? '09:00',
+    schedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
   );
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const [isSaving, setIsSaving] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // 프리셋에 없는 기존 반복 설정은 저장 시 사라지지 않도록 유지 옵션으로 노출한다.
-  const repeatOptions =
-    getRepeatPreset(schedule.repeat) === 'CUSTOM'
-      ? [
-          {
-            label: '기존 설정 유지',
-            value: 'CUSTOM' as const,
-          },
-          ...REPEAT_OPTIONS,
-        ]
-      : REPEAT_OPTIONS;
+  const hasCustomRepeat = getRepeatPreset(schedule.repeat) === 'CUSTOM';
 
-  const handleSave = async () => {
-    if (isSaving) {
+  const repeatOptions = hasCustomRepeat
+    ? [{ label: '기존 설정 유지', value: 'CUSTOM' as const }, ...REPEAT_OPTIONS]
+    : REPEAT_OPTIONS;
+
+  const repeat =
+    repeatPreset === 'CUSTOM'
+      ? schedule.repeat
+      : getRepeatFromPreset(repeatPreset);
+
+  /**
+   * 저장 · 완료 · 삭제 공통 처리
+   *
+   * 중복 실행을 막고, 성공하면 화면을 닫고, 실패하면 알림을 띄운다.
+   */
+  const runAction = async (action: () => Promise<void>, errorTitle: string) => {
+    if (saving) {
       return;
     }
 
-    setIsSaving(true);
+    setSaving(true);
 
     try {
-      const dueDateString = toDateString(dueDate);
-
-      const repeat =
-        repeatPreset === 'CUSTOM' ? schedule.repeat : getRepeat(repeatPreset);
-
-      // 기존 예약 제거
-      await cancelCareNotification(schedule.notificationId);
-
-      let nextNotificationId: string | undefined;
-
-      // 새 알림 예약
-      if (notificationEnabled) {
-        const notificationId = await scheduleCareNotification({
-          scheduleId: schedule.id,
-
-          petName,
-
-          careName: schedule.name,
-
-          dueDate: dueDateString,
-          notificationTime,
-        });
-
-        nextNotificationId = notificationId ?? undefined;
-      }
-
-      updateSchedule(schedule.id, {
-        dueDate: dueDateString,
-
-        repeat,
-
-        notificationEnabled,
-        notificationTime,
-        notificationId: nextNotificationId,
-      });
+      await action();
 
       router.back();
-    } catch {
-      Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
+    } catch (error) {
+      console.log(`${errorTitle}:`, error);
 
-      setIsSaving(false);
+      Alert.alert(errorTitle, '잠시 후 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
     }
   };
 
+  const handleSave = () =>
+    runAction(async () => {
+      const updatedSchedule = await updateCareScheduleById(schedule.id, {
+        name: schedule.name,
+        dueDate: toDateString(dueDate),
+        repeat,
+      });
+
+      // 알림 설정은 서버에 없으므로 기존 예약을 지우고 다시 예약한 뒤 로컬에 함께 저장한다.
+      await cancelCareNotification(schedule.notificationId);
+
+      const notificationId = notificationEnabled
+        ? await scheduleCareNotification({
+            scheduleId: updatedSchedule.id,
+            petName,
+            careName: updatedSchedule.name,
+            dueDate: updatedSchedule.dueDate,
+            notificationTime,
+          })
+        : null;
+
+      replaceSchedule({
+        ...updatedSchedule,
+        notificationEnabled,
+        notificationTime,
+        notificationId: notificationId ?? undefined,
+      });
+    }, '저장하지 못했어요');
+
+  const handleComplete = () =>
+    runAction(async () => {
+      const completedSchedule = await completeCareScheduleById(schedule.id);
+
+      replaceSchedule(completedSchedule);
+
+      if (!schedule.repeat) {
+        return;
+      }
+
+      const nextSchedule = await createCareSchedule({
+        petId: schedule.petId,
+        type: schedule.type,
+        name: schedule.name,
+        dueDate: addRepeatToDate(schedule.dueDate, schedule.repeat),
+        repeat: schedule.repeat,
+      });
+
+      addScheduleFromDb(nextSchedule);
+    }, '완료 처리하지 못했어요');
+
   const handleDelete = () => {
-    Alert.alert('일정을 삭제할까요?', '삭제한 일정은 다시 복구할 수 없어요.', [
-      {
-        text: '취소',
-        style: 'cancel',
-      },
+    Alert.alert('일정을 삭제할까요?', '삭제한 일정은 다시 되돌릴 수 없어요.', [
+      { text: '취소', style: 'cancel' },
       {
         text: '삭제',
         style: 'destructive',
-        onPress: async () => {
-          // 삭제 후 빈 화면이 잠깐 보이지 않도록 먼저 화면을 닫는다.
-          router.back();
+        onPress: () =>
+          runAction(async () => {
+            await deleteCareScheduleById(schedule.id);
 
-          try {
-            await cancelCareNotification(schedule.notificationId);
-          } finally {
-            removeSchedule(schedule.id);
-          }
-        },
+            removeScheduleFromStore(schedule.id);
+
+            try {
+              await cancelCareNotification(schedule.notificationId);
+            } catch (error) {
+              console.warn('알림 취소에 실패했어요.', error);
+            }
+          }, '삭제하지 못했어요'),
       },
     ]);
   };
@@ -199,15 +230,17 @@ function CareDetailForm({
         showsVerticalScrollIndicator={false}
       >
         <AppText variant="heading1">관리 일정</AppText>
+
         <AppText variant="body1" color="secondary" style={styles.description}>
           날짜와 반복 주기를 변경할 수 있어요.
         </AppText>
+
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}>
             <CalendarDays size={22} color={colors.primary[700]} />
           </View>
 
-          <View style={{ flex: 1 }}>
+          <View style={styles.summaryText}>
             <AppText variant="heading2">{schedule.name}</AppText>
 
             <AppText
@@ -219,31 +252,17 @@ function CareDetailForm({
             </AppText>
           </View>
         </View>
+
+        {/* 예정일 */}
         <View style={styles.section}>
           <AppText variant="heading2">예정일</AppText>
 
-          <Pressable
-            style={styles.settingRow}
+          <SettingCard
+            icon={CalendarDays}
+            title="관리 날짜"
+            description={formatKoreanDate(dueDate)}
             onPress={() => setShowDatePicker(true)}
-          >
-            <View style={styles.settingLeft}>
-              <View style={styles.settingIcon}>
-                <CalendarDays size={19} color={colors.primary[700]} />
-              </View>
-
-              <View>
-                <AppText variant="body1">관리 날짜</AppText>
-
-                <AppText
-                  variant="body2"
-                  color="secondary"
-                  style={styles.settingDescription}
-                >
-                  {formatDate(dueDate)}
-                </AppText>
-              </View>
-            </View>
-          </Pressable>
+          />
 
           {showDatePicker && (
             <DateTimePicker
@@ -251,22 +270,25 @@ function CareDetailForm({
               mode="date"
               locale="ko-KR"
               minimumDate={new Date()}
-              onChange={(_event, selectedDate) => {
+              onChange={(event, selectedDate) => {
                 if (Platform.OS === 'android') {
                   setShowDatePicker(false);
                 }
 
-                if (selectedDate) {
+                // Android는 취소(dismissed) 시에도 기존 value로 onChange를 호출한다.
+                if (event.type === 'set' && selectedDate) {
                   setDueDate(selectedDate);
                 }
               }}
             />
           )}
         </View>
+
+        {/* 반복 */}
         <View style={styles.section}>
           <AppText variant="heading2">반복</AppText>
 
-          <View style={styles.settingTitleRow}>
+          <View style={styles.sectionHint}>
             <Repeat2 size={18} color={colors.primary[700]} />
 
             <AppText variant="body2" color="secondary">
@@ -274,92 +296,52 @@ function CareDetailForm({
             </AppText>
           </View>
 
-          <View style={styles.repeatOptions}>
-            {repeatOptions.map((item) => {
-              const selected = repeatPreset === item.value;
-
-              return (
-                <Pressable
-                  key={item.value}
-                  onPress={() => setRepeatPreset(item.value)}
-                  style={[
-                    styles.repeatOption,
-
-                    selected && styles.repeatOptionSelected,
-                  ]}
-                >
-                  <AppText
-                    variant="body2"
-                    color={selected ? 'brand' : 'primary'}
-                  >
-                    {item.label}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
+          <RepeatSelector
+            options={repeatOptions}
+            value={repeatPreset}
+            onChange={setRepeatPreset}
+          />
         </View>
+
+        {/* 알림 */}
         <View style={styles.section}>
           <AppText variant="heading2">알림</AppText>
 
-          <View style={styles.notificationRow}>
-            <View style={styles.settingLeft}>
-              <View style={styles.settingIcon}>
-                <Bell size={19} color={colors.primary[700]} />
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <AppText variant="body1">관리 알림</AppText>
-
-                <AppText
-                  variant="body2"
-                  color="secondary"
-                  style={styles.settingDescription}
-                >
-                  예정일에 알림을 보내드려요.
-                </AppText>
-              </View>
-            </View>
-
-            <Switch
-              value={notificationEnabled}
-              onValueChange={setNotificationEnabled}
-              trackColor={{
-                false: colors.neutral[300],
-                true: colors.primary[300],
-              }}
-              thumbColor={
-                notificationEnabled ? colors.primary[700] : colors.neutral[0]
-              }
-            />
-          </View>
+          <SettingCard
+            icon={Bell}
+            title="관리 알림"
+            description="예정일에 알림을 보내드려요."
+            right={
+              <Switch
+                value={notificationEnabled}
+                onValueChange={setNotificationEnabled}
+                trackColor={{
+                  false: colors.neutral[300],
+                  true: colors.primary[300],
+                }}
+                thumbColor={
+                  notificationEnabled ? colors.primary[700] : colors.neutral[0]
+                }
+              />
+            }
+          />
 
           {notificationEnabled && (
-            <Pressable
-              style={styles.timeRow}
-              onPress={() => setShowTimePicker(true)}
-            >
-              <View>
-                <AppText variant="body1">알림 시간</AppText>
-
-                <AppText
-                  variant="body2"
-                  color="secondary"
-                  style={styles.settingDescription}
-                >
-                  예정일 {formatTime(notificationTime)}
+            <SettingCard
+              title="알림 시간"
+              description={`예정일 ${formatKoreanTime(notificationTime)}`}
+              right={
+                <AppText variant="body1" color="brand">
+                  {formatKoreanTime(notificationTime)}
                 </AppText>
-              </View>
-
-              <AppText variant="body1" color="brand">
-                {formatTime(notificationTime)}
-              </AppText>
-            </Pressable>
+              }
+              onPress={() => setShowTimePicker(true)}
+            />
           )}
 
           {showTimePicker && (
             <DateTimePicker
-              value={timeStringToDate(notificationTime)}
+              value={parseTimeString(notificationTime)}
               mode="time"
               locale="ko-KR"
               is24Hour={false}
@@ -368,134 +350,48 @@ function CareDetailForm({
                   setShowTimePicker(false);
                 }
 
-                if (event.type === 'dismissed') {
-                  return;
-                }
-
-                if (selectedDate) {
+                if (event.type === 'set' && selectedDate) {
                   setNotificationTime(toTimeString(selectedDate));
                 }
               }}
             />
           )}
         </View>
-        <Pressable style={styles.deleteButton} onPress={handleDelete}>
+
+        <Pressable
+          style={styles.deleteButton}
+          disabled={saving}
+          onPress={handleDelete}
+        >
           <Trash2 size={18} color={colors.error[500]} />
 
-          <AppText
-            variant="body1"
-            style={{
-              color: colors.error[500],
-            }}
-          >
+          <AppText variant="body1" style={styles.deleteText}>
             일정 삭제
           </AppText>
         </Pressable>
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton
-          label="변경사항 저장하기"
-          disabled={isSaving}
+        {!schedule.completedAt && (
+          <PrimaryButton
+            label={saving ? '처리 중...' : '오늘 관리 완료'}
+            disabled={saving}
+            onPress={handleComplete}
+          />
+        )}
+
+        <Pressable
+          style={styles.saveButton}
+          disabled={saving}
           onPress={handleSave}
-        />
+        >
+          <AppText variant="body1" color="brand">
+            변경사항 저장하기
+          </AppText>
+        </Pressable>
       </View>
     </View>
   );
-}
-
-function formatDate(date: Date) {
-  return date.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
-
-function getRepeatPreset(repeat?: CareRepeat): RepeatPreset {
-  if (!repeat) {
-    return 'NONE';
-  }
-
-  if (repeat.unit === 'MONTH' && repeat.interval === 1) {
-    return 'MONTHLY';
-  }
-
-  if (repeat.unit === 'MONTH' && repeat.interval === 6) {
-    return 'SIX_MONTHS';
-  }
-
-  if (repeat.unit === 'YEAR' && repeat.interval === 1) {
-    return 'YEARLY';
-  }
-
-  return 'CUSTOM';
-}
-
-function getRepeat(preset: RepeatPreset): CareRepeat | undefined {
-  switch (preset) {
-    case 'MONTHLY':
-      return {
-        unit: 'MONTH',
-        interval: 1,
-      };
-
-    case 'SIX_MONTHS':
-      return {
-        unit: 'MONTH',
-        interval: 6,
-      };
-
-    case 'YEARLY':
-      return {
-        unit: 'YEAR',
-        interval: 1,
-      };
-
-    default:
-      return undefined;
-  }
-}
-
-function formatScheduleType(type: CareSchedule['type']) {
-  switch (type) {
-    case 'VACCINATION':
-      return '예방 일정';
-
-    case 'MEDICATION':
-      return '투약 일정';
-
-    case 'HEARTWORM':
-      return '심장사상충 예방';
-
-    case 'CHECKUP':
-      return '정기 검진';
-  }
-}
-
-function timeStringToDate(timeString: string) {
-  const [hour, minute] = timeString.split(':').map(Number);
-
-  const date = new Date();
-
-  date.setHours(hour, minute, 0, 0);
-
-  return date;
-}
-
-function toTimeString(date: Date) {
-  const hour = String(date.getHours()).padStart(2, '0');
-
-  const minute = String(date.getMinutes()).padStart(2, '0');
-
-  return `${hour}:${minute}`;
-}
-
-function formatTime(timeString: string) {
-  return timeStringToDate(timeString).toLocaleTimeString('ko-KR', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
 }
 
 const styles = StyleSheet.create({
@@ -526,26 +422,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-
     padding: 16,
-
     borderRadius: 18,
-
     backgroundColor: colors.primary[50],
-
     marginBottom: 32,
   },
 
   summaryIcon: {
     width: 44,
     height: 44,
-
     borderRadius: 14,
-
     alignItems: 'center',
     justifyContent: 'center',
-
     backgroundColor: colors.primary[100],
+  },
+
+  summaryText: {
+    flex: 1,
   },
 
   summaryDescription: {
@@ -556,134 +449,39 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
 
-  settingRow: {
-    marginTop: 12,
-
-    backgroundColor: colors.neutral[0],
-
-    borderRadius: 16,
-
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-
-    padding: 16,
-  },
-
-  settingLeft: {
+  sectionHint: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-
-    flex: 1,
-  },
-
-  settingIcon: {
-    width: 40,
-    height: 40,
-
-    borderRadius: 12,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: colors.primary[100],
-  },
-
-  settingDescription: {
-    marginTop: 4,
-  },
-
-  settingTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
     gap: 8,
-
     marginTop: 8,
     marginBottom: 12,
   },
 
-  repeatOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-
-  repeatOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-
-    borderRadius: 12,
-
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-
-    backgroundColor: colors.neutral[0],
-  },
-
-  repeatOptionSelected: {
-    borderColor: colors.primary[600],
-
-    backgroundColor: colors.primary[50],
-  },
-
-  notificationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-
-    marginTop: 12,
-
-    padding: 16,
-
-    borderRadius: 16,
-
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-
-    backgroundColor: colors.neutral[0],
-  },
-
-  timeRow: {
-    minHeight: 64,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-
-    marginTop: 10,
-
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-
-    borderRadius: 16,
-
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-
-    backgroundColor: colors.neutral[0],
-  },
-
   deleteButton: {
     minHeight: 52,
-
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-
     gap: 8,
-
     marginTop: 8,
-
     borderRadius: 14,
-
     backgroundColor: colors.error[50],
+  },
+
+  deleteText: {
+    color: colors.error[500],
   },
 
   footer: {
     paddingHorizontal: 20,
     paddingBottom: 24,
-
     backgroundColor: colors.neutral[50],
+  },
+
+  saveButton: {
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
   },
 });

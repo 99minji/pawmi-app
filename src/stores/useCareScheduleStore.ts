@@ -15,6 +15,10 @@ type CareScheduleState = {
   completeSchedule: (id: string) => void;
 
   removeSchedule: (id: string) => void;
+
+  replaceSchedule: (schedule: CareSchedule) => void;
+
+  removeScheduleFromStore: (id: string) => void;
 };
 
 export const useCareScheduleStore = create<CareScheduleState>()(
@@ -49,11 +53,6 @@ export const useCareScheduleStore = create<CareScheduleState>()(
           ),
         })),
 
-      removeSchedule: (id) =>
-        set((state) => ({
-          schedules: state.schedules.filter((schedule) => schedule.id !== id),
-        })),
-
       updateSchedule: (id, updates) =>
         set((state) => ({
           schedules: state.schedules.map((schedule) =>
@@ -64,6 +63,23 @@ export const useCareScheduleStore = create<CareScheduleState>()(
                 }
               : schedule,
           ),
+        })),
+
+      removeSchedule: (id) =>
+        set((state) => ({
+          schedules: state.schedules.filter((schedule) => schedule.id !== id),
+        })),
+
+      replaceSchedule: (schedule) =>
+        set((state) => ({
+          schedules: state.schedules.map((item) =>
+            item.id === schedule.id ? schedule : item,
+          ),
+        })),
+
+      removeScheduleFromStore: (id) =>
+        set((state) => ({
+          schedules: state.schedules.filter((item) => item.id !== id),
         })),
     }),
     {
