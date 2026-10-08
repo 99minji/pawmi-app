@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
+import { DateField } from '@/components/common/DateField';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
 import { createCareSchedule } from '@/services/care';
@@ -20,7 +21,7 @@ import { createVaccinationRecord } from '@/services/health';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
-import { toDateString } from '@/utils/date';
+import { dateToOccurredAt, toDateString } from '@/utils/date';
 import {
   DEFAULT_NOTIFICATION_TIME,
   scheduleCareNotification,
@@ -32,6 +33,8 @@ export default function VaccinationRecordScreen() {
   const [vaccinationName, setVaccinationName] = useState('');
 
   const [memo, setMemo] = useState('');
+
+  const [occurredDate, setOccurredDate] = useState(() => new Date());
 
   const [nextDueDate, setNextDueDate] = useState<Date | null>(null);
 
@@ -99,7 +102,12 @@ export default function VaccinationRecordScreen() {
     setSaving(true);
 
     try {
-      const record = await createVaccinationRecord(pet.id, trimmedName, memo);
+      const record = await createVaccinationRecord(
+        pet.id,
+        trimmedName,
+        memo,
+        dateToOccurredAt(occurredDate),
+      );
 
       addRecord(record);
     } catch (error) {
@@ -193,6 +201,13 @@ export default function VaccinationRecordScreen() {
               style={styles.input}
             />
           </View>
+
+          <DateField
+            label="접종 날짜"
+            value={occurredDate}
+            onChange={setOccurredDate}
+            maximumDate={new Date()}
+          />
 
           <View style={styles.field}>
             <View style={styles.labelRow}>

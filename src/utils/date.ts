@@ -51,3 +51,16 @@ export function formatKoreanTime(timeString: string) {
     minute: '2-digit',
   });
 }
+
+/**
+ * 날짜만 의미 있는 기록을 저장할 때 사용한다.
+ *
+ * 로컬 자정은 UTC로 바꾸면 전날이 될 수 있어서, 로컬 정오로 고정한 뒤 ISO 문자열로 변환한다.
+ */
+export function dateToOccurredAt(date: Date) {
+  const result = new Date(date);
+
+  result.setHours(12, 0, 0, 0);
+
+  return result.toISOString();
+}

@@ -11,11 +11,13 @@ import {
 } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
+import { DateField } from '@/components/common/DateField';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
 import { createMedicationRecord } from '@/services/health';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
+import { dateToOccurredAt } from '@/utils/date';
 
 export default function MedicationRecordScreen() {
   const [medicationName, setMedicationName] = useState('');
@@ -23,6 +25,8 @@ export default function MedicationRecordScreen() {
   const [dosageText, setDosageText] = useState('');
 
   const [memo, setMemo] = useState('');
+
+  const [occurredDate, setOccurredDate] = useState(() => new Date());
 
   const [saving, setSaving] = useState(false);
 
@@ -53,6 +57,7 @@ export default function MedicationRecordScreen() {
         trimmedName,
         dosageText,
         memo,
+        dateToOccurredAt(occurredDate),
       );
 
       addRecord(record);
@@ -122,6 +127,13 @@ export default function MedicationRecordScreen() {
               returnKeyType="next"
             />
           </View>
+
+          <DateField
+            label="복용 날짜"
+            value={occurredDate}
+            onChange={setOccurredDate}
+            maximumDate={new Date()}
+          />
 
           <View style={styles.field}>
             <View style={styles.labelRow}>

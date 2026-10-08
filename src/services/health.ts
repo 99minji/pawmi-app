@@ -2,7 +2,11 @@ import { supabase } from '@/lib/supabase';
 
 import { mapHealthRecordFromDb } from '@/mappers/health';
 
-export async function createWeightRecord(petId: string, weightKg: number) {
+export async function createWeightRecord(
+  petId: string,
+  weightKg: number,
+  occurredAt: string,
+) {
   const {
     data: { user },
     error: userError,
@@ -16,8 +20,6 @@ export async function createWeightRecord(petId: string, weightKg: number) {
     throw new Error('로그인 정보가 없습니다.');
   }
 
-  const now = new Date().toISOString();
-
   const { data, error } = await supabase
     .from('health_records')
     .insert({
@@ -26,8 +28,7 @@ export async function createWeightRecord(petId: string, weightKg: number) {
       type: 'WEIGHT',
       title: `체중 ${weightKg}kg`,
       weight_kg: weightKg,
-      occurred_at: now,
-      created_at: now,
+      occurred_at: occurredAt,
     })
     .select()
     .single();
@@ -58,7 +59,8 @@ export async function getHealthRecords(petId: string) {
 export async function createSymptomRecord(
   petId: string,
   symptom: string,
-  memo?: string,
+  memo: string | undefined,
+  occurredAt: string,
 ) {
   const {
     data: { user },
@@ -73,8 +75,6 @@ export async function createSymptomRecord(
     throw new Error('로그인 정보가 없습니다.');
   }
 
-  const now = new Date().toISOString();
-
   const { data, error } = await supabase
     .from('health_records')
     .insert({
@@ -87,8 +87,7 @@ export async function createSymptomRecord(
 
       memo: memo?.trim() || null,
 
-      occurred_at: now,
-      created_at: now,
+      occurred_at: occurredAt,
     })
     .select()
     .single();
@@ -103,8 +102,9 @@ export async function createSymptomRecord(
 export async function createMedicationRecord(
   petId: string,
   medicationName: string,
-  dosageText?: string,
-  memo?: string,
+  dosageText: string | undefined,
+  memo: string | undefined,
+  occurredAt: string,
 ) {
   const {
     data: { user },
@@ -118,8 +118,6 @@ export async function createMedicationRecord(
   if (!user) {
     throw new Error('로그인 정보가 없습니다.');
   }
-
-  const now = new Date().toISOString();
 
   const { data, error } = await supabase
     .from('health_records')
@@ -134,8 +132,7 @@ export async function createMedicationRecord(
       dosage_text: dosageText?.trim() || null,
       memo: memo?.trim() || null,
 
-      occurred_at: now,
-      created_at: now,
+      occurred_at: occurredAt,
     })
     .select()
     .single();
@@ -150,7 +147,8 @@ export async function createMedicationRecord(
 export async function createVaccinationRecord(
   petId: string,
   vaccinationName: string,
-  memo?: string,
+  memo: string | undefined,
+  occurredAt: string,
 ) {
   const {
     data: { user },
@@ -165,8 +163,6 @@ export async function createVaccinationRecord(
     throw new Error('로그인 정보가 없습니다.');
   }
 
-  const now = new Date().toISOString();
-
   const { data, error } = await supabase
     .from('health_records')
     .insert({
@@ -179,8 +175,7 @@ export async function createVaccinationRecord(
       vaccination_name: vaccinationName,
       memo: memo?.trim() || null,
 
-      occurred_at: now,
-      created_at: now,
+      occurred_at: occurredAt,
     })
     .select()
     .single();
@@ -195,8 +190,9 @@ export async function createVaccinationRecord(
 export async function createVetVisitRecord(
   petId: string,
   visitReason: string,
-  clinicName?: string,
-  memo?: string,
+  clinicName: string | undefined,
+  memo: string | undefined,
+  occurredAt: string,
 ) {
   const {
     data: { user },
@@ -210,8 +206,6 @@ export async function createVetVisitRecord(
   if (!user) {
     throw new Error('로그인 정보가 없습니다.');
   }
-
-  const now = new Date().toISOString();
 
   const { data, error } = await supabase
     .from('health_records')
@@ -227,8 +221,7 @@ export async function createVetVisitRecord(
       clinic_name: clinicName?.trim() || null,
       memo: memo?.trim() || null,
 
-      occurred_at: now,
-      created_at: now,
+      occurred_at: occurredAt,
     })
     .select()
     .single();
@@ -238,12 +231,4 @@ export async function createVetVisitRecord(
   }
 
   return mapHealthRecordFromDb(data);
-}
-
-export async function deleteHealthRecordById(id: string) {
-  const { error } = await supabase.from('health_records').delete().eq('id', id);
-
-  if (error) {
-    throw error;
-  }
 }

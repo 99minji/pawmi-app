@@ -10,18 +10,27 @@ import {
 } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
+import { DateField } from '@/components/common/DateField';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
 import { createWeightRecord } from '@/services/health';
 import { updatePetById } from '@/services/pet';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
+import { dateToOccurredAt } from '@/utils/date';
+import { isWeightRecord, sortByLatest } from '@/utils/health';
 
 export default function WeightRecordScreen() {
   const [weight, setWeight] = useState('');
 
+  const [occurredDate, setOccurredDate] = useState(() => new Date());
+
+  const [saving, setSaving] = useState(false);
+
   const pet = usePetStore((state) => state.pet);
   const setPet = usePetStore((state) => state.setPet);
+
+  const records = useHealthStore((state) => state.records);
 
   const addRecord = useHealthStore((state) => state.addRecord);
 
@@ -33,7 +42,7 @@ export default function WeightRecordScreen() {
     numericWeight > 0;
 
   const handleSave = async () => {
-    if (!pet) {
+    if (!pet || saving) {
       return;
     }
 
@@ -45,22 +54,42 @@ export default function WeightRecordScreen() {
       return;
     }
 
+    const occurredAt = dateToOccurredAt(occurredDate);
+
+    // 지난 날짜 기록이 현재 체중을 덮어쓰지 않도록, 가장 최근 기록일 때만 반려동물 체중을 갱신한다.
+    const latestWeightRecord = sortByLatest(
+      records.filter(
+        (record) => record.petId === pet.id && isWeightRecord(record),
+      ),
+    )[0];
+
+    const isLatest =
+      !latestWeightRecord ||
+      new Date(occurredAt).getTime() >=
+        new Date(latestWeightRecord.occurredAt).getTime();
+
+    setSaving(true);
+
     try {
-      const record = await createWeightRecord(pet.id, weightKg);
+      const record = await createWeightRecord(pet.id, weightKg, occurredAt);
 
       addRecord(record);
 
-      const updatedPet = await updatePetById(pet.id, {
-        weightKg,
-      });
+      if (isLatest) {
+        const updatedPet = await updatePetById(pet.id, {
+          weightKg,
+        });
 
-      setPet(updatedPet);
+        setPet(updatedPet);
+      }
 
       router.back();
     } catch (error) {
       console.log('CREATE WEIGHT ERROR:', error);
 
       Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -73,7 +102,7 @@ export default function WeightRecordScreen() {
         <AppText variant="heading1">체중을 기록해볼까요?</AppText>
 
         <AppText variant="body1" color="secondary" style={styles.description}>
-          현재 체중을 입력해주세요.
+          체중과 잰 날짜를 입력해주세요.
         </AppText>
 
         <View style={styles.inputRow}>
@@ -89,12 +118,21 @@ export default function WeightRecordScreen() {
 
           <AppText variant="heading2">kg</AppText>
         </View>
+
+        <View style={styles.dateField}>
+          <DateField
+            label="측정 날짜"
+            value={occurredDate}
+            onChange={setOccurredDate}
+            maximumDate={new Date()}
+          />
+        </View>
       </View>
 
       <View style={styles.footer}>
         <PrimaryButton
-          label="기록하기"
-          disabled={!isValid}
+          label={saving ? '기록 중...' : '기록하기'}
+          disabled={!isValid || saving}
           onPress={handleSave}
         />
       </View>
@@ -136,6 +174,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 24,
     color: colors.neutral[900],
+  },
+
+  dateField: {
+    marginTop: 28,
   },
 
   footer: {

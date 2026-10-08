@@ -4,22 +4,27 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
+import { DateField } from '@/components/common/DateField';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
 import { createVetVisitRecord } from '@/services/health';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
+import { dateToOccurredAt } from '@/utils/date';
 
 export default function VetVisitRecordScreen() {
   const [clinicName, setClinicName] = useState('');
   const [visitReason, setVisitReason] = useState('');
   const [memo, setMemo] = useState('');
+
+  const [occurredDate, setOccurredDate] = useState(() => new Date());
 
   const [saving, setSaving] = useState(false);
 
@@ -50,6 +55,7 @@ export default function VetVisitRecordScreen() {
         trimmedReason,
         clinicName,
         memo,
+        dateToOccurredAt(occurredDate),
       );
 
       addRecord(record);
@@ -69,7 +75,13 @@ export default function VetVisitRecordScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={false}
+      >
         <AppText variant="heading1">병원 방문을 기록해볼까요?</AppText>
 
         <AppText variant="body1" color="secondary" style={styles.description}>
@@ -94,6 +106,13 @@ export default function VetVisitRecordScreen() {
               style={styles.input}
             />
           </View>
+
+          <DateField
+            label="방문 날짜"
+            value={occurredDate}
+            onChange={setOccurredDate}
+            maximumDate={new Date()}
+          />
 
           <View style={styles.field}>
             <AppText variant="label">진료 내용</AppText>
@@ -131,12 +150,12 @@ export default function VetVisitRecordScreen() {
             />
           </View>
         </View>
-      </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <PrimaryButton
           label={saving ? '기록 중...' : '기록하기'}
-          disabled={!visitReason.trim() || saving}
+          disabled={!isValid || saving}
           onPress={handleSave}
         />
       </View>
@@ -150,10 +169,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[50],
   },
 
-  content: {
+  scroll: {
     flex: 1,
+  },
+
+  content: {
     paddingHorizontal: 20,
     paddingTop: 80,
+    paddingBottom: 24,
   },
 
   description: {

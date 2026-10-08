@@ -153,7 +153,12 @@ export default function TodayScreen() {
       // 3. 예방접종 일정이었다면
       // 실제 건강 기록에도 남긴다.
       if (schedule.type === 'VACCINATION') {
-        const record = await createVaccinationRecord(pet.id, schedule.name);
+        const record = await createVaccinationRecord(
+          pet.id,
+          schedule.name,
+          undefined,
+          new Date().toISOString(),
+        );
 
         addRecord(record);
       }

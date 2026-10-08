@@ -11,16 +11,20 @@ import {
 } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
+import { DateField } from '@/components/common/DateField';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
 import { createSymptomRecord } from '@/services/health';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
+import { dateToOccurredAt } from '@/utils/date';
 
 export default function SymptomRecordScreen() {
   const [symptom, setSymptom] = useState('');
 
   const [memo, setMemo] = useState('');
+
+  const [occurredDate, setOccurredDate] = useState(() => new Date());
 
   const [saving, setSaving] = useState(false);
 
@@ -46,7 +50,12 @@ export default function SymptomRecordScreen() {
     setSaving(true);
 
     try {
-      const record = await createSymptomRecord(pet.id, trimmedSymptom, memo);
+      const record = await createSymptomRecord(
+        pet.id,
+        trimmedSymptom,
+        memo,
+        dateToOccurredAt(occurredDate),
+      );
 
       addRecord(record);
 
@@ -88,6 +97,15 @@ export default function SymptomRecordScreen() {
           style={styles.input}
           textAlignVertical="top"
         />
+
+        <View style={styles.dateField}>
+          <DateField
+            label="기록 날짜"
+            value={occurredDate}
+            onChange={setOccurredDate}
+            maximumDate={new Date()}
+          />
+        </View>
 
         <View style={styles.memoField}>
           <View style={styles.labelRow}>
@@ -154,6 +172,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: colors.neutral[900],
+  },
+
+  dateField: {
+    marginTop: 28,
   },
 
   memoField: {
