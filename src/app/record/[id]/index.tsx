@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Trash2 } from 'lucide-react-native';
+import { Pencil, Trash2 } from 'lucide-react-native';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
@@ -94,6 +94,23 @@ export default function HealthRecordDetailScreen() {
           </View>
         ) : null}
 
+        <Pressable
+          style={styles.editButton}
+          onPress={() =>
+            router.push({
+              pathname: '/record/[id]/edit',
+              params: {
+                id: record.id,
+              },
+            })
+          }
+        >
+          <Pencil size={18} color={colors.primary[700]} />
+
+          <AppText variant="body1" color="brand">
+            기록 수정
+          </AppText>
+        </Pressable>
         <Pressable style={styles.deleteButton} onPress={handleDelete}>
           <Trash2 size={18} color={colors.error[500]} />
 
@@ -216,9 +233,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[0],
   },
 
-  deleteButton: {
+  editButton: {
     minHeight: 52,
     marginTop: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+    backgroundColor: colors.primary[50],
+  },
+
+  deleteButton: {
+    minHeight: 52,
+    marginTop: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

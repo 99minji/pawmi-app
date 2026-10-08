@@ -3,6 +3,30 @@ import { supabase } from '@/lib/supabase';
 import { mapPetFromDb } from '@/mappers/pet';
 import type { AvatarBreed, Gender, Species } from '@/types/pet';
 
+type CreatePetInput = {
+  name: string;
+  species: Species;
+  gender: Gender;
+
+  birthDate?: string;
+  estimatedAge?: number;
+
+  breed?: string;
+  avatarBreed?: AvatarBreed;
+};
+
+type UpdatePetInput = {
+  name?: string;
+  species?: 'DOG' | 'CAT';
+  gender?: 'MALE' | 'FEMALE';
+  birthDate?: string | null;
+  estimatedAge?: number | null;
+  breed?: string | null;
+  avatarBreed?: string | null;
+  profileImageUrl?: string | null;
+  weightKg?: number | null;
+};
+
 export async function getMyPet() {
   const {
     data: { user },
@@ -28,18 +52,6 @@ export async function getMyPet() {
 
   return mapPetFromDb(data);
 }
-
-type CreatePetInput = {
-  name: string;
-  species: Species;
-  gender: Gender;
-
-  birthDate?: string;
-  estimatedAge?: number;
-
-  breed?: string;
-  avatarBreed?: AvatarBreed;
-};
 
 export async function createPet(input: CreatePetInput) {
   const {
@@ -81,18 +93,6 @@ export async function createPet(input: CreatePetInput) {
 
   return data;
 }
-
-type UpdatePetInput = {
-  name?: string;
-  species?: 'DOG' | 'CAT';
-  gender?: 'MALE' | 'FEMALE';
-  birthDate?: string;
-  estimatedAge?: number;
-  breed?: string;
-  avatarBreed?: string;
-  profileImageUrl?: string;
-  weightKg?: number;
-};
 
 export async function updatePetById(petId: string, input: UpdatePetInput) {
   const updates = {

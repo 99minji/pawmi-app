@@ -232,3 +232,144 @@ export async function createVetVisitRecord(
 
   return mapHealthRecordFromDb(data);
 }
+// 삭제 함수
+
+export async function deleteHealthRecordById(id: string) {
+  const { error } = await supabase.from('health_records').delete().eq('id', id);
+
+  if (error) {
+    throw error;
+  }
+}
+
+// 수정 함수
+type UpdateHealthRecordInput =
+  | {
+      type: 'WEIGHT';
+      weightKg: number;
+      occurredAt: string;
+      memo?: string;
+    }
+  | {
+      type: 'SYMPTOM';
+      symptom: string;
+      occurredAt: string;
+      memo?: string;
+    }
+  | {
+      type: 'MEDICATION';
+      medicationName: string;
+      dosageText?: string;
+      occurredAt: string;
+      memo?: string;
+    }
+  | {
+      type: 'VACCINATION';
+      vaccinationName: string;
+      occurredAt: string;
+      memo?: string;
+    }
+  | {
+      type: 'VET_VISIT';
+      visitReason: string;
+      clinicName?: string;
+      occurredAt: string;
+      memo?: string;
+    };
+
+export async function updateHealthRecordById(
+  id: string,
+  input: UpdateHealthRecordInput,
+) {
+  let updates: Record<string, unknown> = {
+    occurred_at: input.occurredAt,
+
+    memo: input.memo?.trim() || null,
+  };
+
+  switch (input.type) {
+    case 'WEIGHT':
+      updates = {
+        ...updates,
+        title: `체중 ${input.weightKg}kg`,
+        weight_kg: input.weightKg,
+      };
+      break;
+
+    case 'SYMPTOM':
+      updates = {
+        ...updates,
+        title: input.symptom,
+        symptom: input.symptom,
+      };
+      break;
+
+    case 'MEDICATION':
+      updates = {
+        ...updates,
+        title: input.medicationName,
+
+        medication_name: input.medicationName,
+
+        dosage_text: input.dosageText?.trim() || null,
+      };
+      break;
+
+    case 'VACCINATION':
+      updates = {
+        ...updates,
+        title: input.vaccinationName,
+
+        vaccination_name: input.vaccinationName,
+      };
+      break;
+
+    case 'VET_VISIT':
+      updates = {
+        ...updates,
+        title: input.visitReason,
+
+        visit_reason: input.visitReason,
+
+        clinic_name: input.clinicName?.trim() || null,
+      };
+      break;
+  }
+
+  const { data, error } = await supabase
+    .from('health_records')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapHealthRecordFromDb(data);
+}
+
+// 최신 체중 조회
+export async function getLatestWeight(petId: string) {
+  const { data, error } = await supabase
+    .from('health_records')
+    .select('weight_kg')
+    .eq('pet_id', petId)
+    .eq('type', 'WEIGHT')
+    .order('occurred_at', {
+      ascending: false,
+    })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (data?.weight_kg === null || data?.weight_kg === undefined) {
+    return undefined;
+  }
+
+  return Number(data.weight_kg);
+}

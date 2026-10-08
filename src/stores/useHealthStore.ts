@@ -12,6 +12,8 @@ type HealthState = {
   removeRecord: (id: string) => void;
 
   clearRecords: () => void;
+
+  replaceRecord: (record: HealthRecord) => void;
 };
 
 export const useHealthStore = create<HealthState>((set) => ({
@@ -36,4 +38,11 @@ export const useHealthStore = create<HealthState>((set) => ({
     set({
       records: [],
     }),
+
+  replaceRecord: (record) =>
+    set((state) => ({
+      records: state.records.map((item) =>
+        item.id === record.id ? record : item,
+      ),
+    })),
 }));
