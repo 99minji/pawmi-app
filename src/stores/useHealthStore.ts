@@ -7,6 +7,8 @@ import type { HealthRecord, WeightRecord } from '@/types/health';
 type HealthState = {
   records: HealthRecord[];
 
+  setRecords: (records: HealthRecord[]) => void;
+
   addRecord: (record: HealthRecord) => void;
 
   addWeightRecord: (petId: string, weightKg: number) => void;
@@ -18,6 +20,16 @@ export const useHealthStore = create<HealthState>()(
   persist(
     (set) => ({
       records: [],
+
+      setRecords: (records) =>
+        set({
+          records,
+        }),
+
+      addRecord: (record) =>
+        set((state) => ({
+          records: [record, ...state.records],
+        })),
 
       addWeightRecord: (petId, weightKg) => {
         const now = new Date().toISOString();
@@ -36,11 +48,6 @@ export const useHealthStore = create<HealthState>()(
           records: [record, ...state.records],
         }));
       },
-
-      addRecord: (record) =>
-        set((state) => ({
-          records: [record, ...state.records],
-        })),
 
       removeRecord: (id) =>
         set((state) => ({

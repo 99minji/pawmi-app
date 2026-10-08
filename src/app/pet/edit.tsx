@@ -2,6 +2,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +17,8 @@ import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { colors } from '@/constants/colors';
 import { getPetAvatar, petAvatars } from '@/constants/petAvatars';
+import { supabase } from '@/lib/supabase';
+import { updatePetById } from '@/services/pet';
 import { usePetStore } from '@/stores/usePetStore';
 import type { AvatarBreed, Gender, Pet } from '@/types/pet';
 import { parseDateString, toDateString } from '@/utils/date';
@@ -31,7 +34,7 @@ export default function PetEditScreen() {
 }
 
 function PetEditForm({ pet }: { pet: Pet }) {
-  const updatePet = usePetStore((state) => state.updatePet);
+  const setPet = usePetStore((state) => state.setPet);
 
   const [name, setName] = useState(pet.name);
   const [breed, setBreed] = useState(pet.breed ?? '');
@@ -47,34 +50,58 @@ function PetEditForm({ pet }: { pet: Pet }) {
     pet.avatarBreed ?? 'POMERANIAN',
   );
 
+  const [saving, setSaving] = useState(false);
+
   const isValid = name.trim().length > 0;
 
   const currentAvatar = getPetAvatar(avatarBreed);
 
-  const handleSave = () => {
-    if (!isValid) return;
+  const handleSave = async () => {
+    if (!pet || !isValid || saving) {
+      return;
+    }
 
-    updatePet({
-      name: name.trim(),
+    setSaving(true);
 
-      breed: breed.trim() || undefined,
+    try {
+      const updatedPet = await updatePetById(pet.id, {
+        name: name.trim(),
 
-      gender,
+        breed: breed.trim() || undefined,
 
-      avatarBreed,
+        gender,
 
-      ...(birthDate
-        ? {
-            birthDate: toDateString(birthDate),
+        avatarBreed,
 
-            estimatedAge: undefined,
-          }
-        : {}),
-    });
+        ...(birthDate
+          ? {
+              birthDate: toDateString(birthDate),
+              estimatedAge: undefined,
+            }
+          : {}),
+      });
 
-    router.back();
+      setPet(updatedPet);
+
+      router.back();
+    } catch (error) {
+      console.log('UPDATE PET ERROR:', error);
+
+      Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
+    }
   };
 
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      return;
+    }
+
+    router.replace('/');
+  };
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -225,11 +252,22 @@ function PetEditForm({ pet }: { pet: Pet }) {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label="저장하기"
-          disabled={!isValid}
+          label={saving ? '저장 중...' : '저장하기'}
+          disabled={!isValid || saving}
           onPress={handleSave}
         />
       </View>
+
+      <Pressable onPress={handleLogout}>
+        <AppText
+          variant="body1"
+          style={{
+            color: colors.error[500],
+          }}
+        >
+          로그아웃
+        </AppText>
+      </Pressable>
     </KeyboardAvoidingView>
   );
 }

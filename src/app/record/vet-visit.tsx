@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
 import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
+import { createVetVisitRecord } from '@/services/health';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
 
@@ -19,46 +21,47 @@ export default function VetVisitRecordScreen() {
   const [visitReason, setVisitReason] = useState('');
   const [memo, setMemo] = useState('');
 
+  const [saving, setSaving] = useState(false);
+
   const pet = usePetStore((state) => state.pet);
 
   const addRecord = useHealthStore((state) => state.addRecord);
 
   const isValid = visitReason.trim().length > 0;
 
-  const handleSave = () => {
-    if (!pet || !isValid) {
+  const handleSave = async () => {
+    if (!pet || saving) {
       return;
     }
 
-    const now = new Date().toISOString();
+    const trimmedReason = visitReason.trim();
 
-    const reason = visitReason.trim();
+    if (!trimmedReason) {
+      Alert.alert('방문 이유를 입력해주세요');
 
-    const clinic = clinicName.trim();
+      return;
+    }
 
-    const memoText = memo.trim();
+    setSaving(true);
 
-    addRecord({
-      id: `vet-${Date.now()}`,
+    try {
+      const record = await createVetVisitRecord(
+        pet.id,
+        trimmedReason,
+        clinicName,
+        memo,
+      );
 
-      petId: pet.id,
+      addRecord(record);
 
-      type: 'VET_VISIT',
+      router.back();
+    } catch (error) {
+      console.log('CREATE VET VISIT ERROR:', error);
 
-      title: clinic ? `${clinic} 방문` : '병원 방문',
-
-      clinicName: clinic || undefined,
-
-      visitReason: reason,
-
-      memo: memoText || undefined,
-
-      occurredAt: now,
-
-      createdAt: now,
-    });
-
-    router.back();
+      Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -132,8 +135,8 @@ export default function VetVisitRecordScreen() {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label="병원 방문 기록하기"
-          disabled={!isValid}
+          label={saving ? '기록 중...' : '기록하기'}
+          disabled={!visitReason.trim() || saving}
           onPress={handleSave}
         />
       </View>

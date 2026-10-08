@@ -9,6 +9,9 @@ import { petAvatars } from '@/constants/petAvatars';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { usePetStore } from '@/stores/usePetStore';
 
+import { mapPetFromDb } from '@/mappers/pet';
+import { createPet } from '@/services/pet';
+
 export default function AvatarScreen() {
   const name = useOnboardingStore((state) => state.name);
 
@@ -30,28 +33,29 @@ export default function AvatarScreen() {
 
   const setPet = usePetStore((state) => state.setPet);
 
-  const handleComplete = () => {
-    if (!species || !gender || !avatarBreed) {
+  const handleComplete = async () => {
+    if (!species || !gender) {
       return;
     }
 
-    setPet({
-      id: 'mock-pet-1',
-      name,
-      species,
-      gender,
-      avatarBreed,
+    try {
+      const createdPet = await createPet({
+        name,
+        species,
+        gender,
+        birthDate: birthDate || undefined,
+        estimatedAge: estimatedAge ?? undefined,
+        avatarBreed: avatarBreed ?? undefined,
+      });
 
-      ...(birthDate ? { birthDate } : {}),
+      setPet(mapPetFromDb(createdPet));
 
-      ...(estimatedAge !== null ? { estimatedAge } : {}),
+      completeOnboarding();
 
-      createdAt: new Date().toISOString(),
-    });
-
-    completeOnboarding();
-
-    router.replace('/(tabs)');
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.log('CREATE PET ERROR:', error);
+    }
   };
 
   return (

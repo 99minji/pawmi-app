@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -11,19 +12,18 @@ import {
 import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
+import { createWeightRecord } from '@/services/health';
+import { updatePetById } from '@/services/pet';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
-import { useUiStore } from '@/stores/useUiStore';
 
 export default function WeightRecordScreen() {
   const [weight, setWeight] = useState('');
 
   const pet = usePetStore((state) => state.pet);
-  const updatePet = usePetStore((state) => state.updatePet);
+  const setPet = usePetStore((state) => state.setPet);
 
-  const addWeightRecord = useHealthStore((state) => state.addWeightRecord);
-
-  const setAvatarReaction = useUiStore((state) => state.setAvatarReaction);
+  const addRecord = useHealthStore((state) => state.addRecord);
 
   const numericWeight = Number(weight);
 
@@ -32,20 +32,36 @@ export default function WeightRecordScreen() {
     !Number.isNaN(numericWeight) &&
     numericWeight > 0;
 
-  const handleSave = () => {
-    if (!pet || !isValid) {
+  const handleSave = async () => {
+    if (!pet) {
       return;
     }
 
-    addWeightRecord(pet.id, numericWeight);
+    const weightKg = Number(weight);
 
-    updatePet({
-      weightKg: numericWeight,
-    });
+    if (Number.isNaN(weightKg) || weightKg <= 0) {
+      Alert.alert('체중을 확인해주세요', '올바른 체중을 입력해주세요.');
 
-    setAvatarReaction('care');
+      return;
+    }
 
-    router.back();
+    try {
+      const record = await createWeightRecord(pet.id, weightKg);
+
+      addRecord(record);
+
+      const updatedPet = await updatePetById(pet.id, {
+        weightKg,
+      });
+
+      setPet(updatedPet);
+
+      router.back();
+    } catch (error) {
+      console.log('CREATE WEIGHT ERROR:', error);
+
+      Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
+    }
   };
 
   return (

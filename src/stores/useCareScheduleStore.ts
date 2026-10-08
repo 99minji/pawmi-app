@@ -7,8 +7,9 @@ import type { CareSchedule } from '@/types/care';
 type CareScheduleState = {
   schedules: CareSchedule[];
 
+  setSchedules: (schedules: CareSchedule[]) => void;
   addSchedule: (schedule: CareSchedule) => void;
-
+  addScheduleFromDb: (schedule: CareSchedule) => void;
   updateSchedule: (id: string, updates: Partial<CareSchedule>) => void;
 
   completeSchedule: (id: string) => void;
@@ -21,9 +22,19 @@ export const useCareScheduleStore = create<CareScheduleState>()(
     (set) => ({
       schedules: [],
 
+      setSchedules: (schedules) =>
+        set({
+          schedules,
+        }),
+
       addSchedule: (schedule) =>
         set((state) => ({
           schedules: [schedule, ...state.schedules],
+        })),
+
+      addScheduleFromDb: (schedule) =>
+        set((state) => ({
+          schedules: [...state.schedules, schedule],
         })),
 
       completeSchedule: (id) =>

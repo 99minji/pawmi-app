@@ -45,3 +45,7 @@ example
 # Tools
 .serena/
 .omc/
+
+# env
+.env
+.env.*

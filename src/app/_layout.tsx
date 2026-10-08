@@ -1,3 +1,4 @@
+import { AuthProvider } from '@/providers/AuthProvider';
 import { requestNotificationPermission } from '@/utils/notification';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -31,11 +32,13 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-        }}
-      />
+      <AuthProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+          }}
+        />
+      </AuthProvider>
     </GestureHandlerRootView>
   );
 }

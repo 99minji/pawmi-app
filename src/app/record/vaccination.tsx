@@ -2,9 +2,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -13,22 +15,31 @@ import {
 import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
+import { createCareSchedule } from '@/services/care';
+import { createVaccinationRecord } from '@/services/health';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
 import { toDateString } from '@/utils/date';
-import { scheduleCareNotification } from '@/utils/notification';
+import {
+  DEFAULT_NOTIFICATION_TIME,
+  scheduleCareNotification,
+} from '@/utils/notification';
 
 type RepeatPreset = 'NONE' | 'MONTHLY' | 'SIX_MONTHS' | 'YEARLY';
 
 export default function VaccinationRecordScreen() {
   const [vaccinationName, setVaccinationName] = useState('');
 
+  const [memo, setMemo] = useState('');
+
   const [nextDueDate, setNextDueDate] = useState<Date | null>(null);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>('NONE');
+
+  const [saving, setSaving] = useState(false);
 
   const pet = usePetStore((state) => state.pet);
 
@@ -73,64 +84,86 @@ export default function VaccinationRecordScreen() {
   };
 
   const handleSave = async () => {
-    if (!pet || !isValid) {
+    if (!pet || saving) {
       return;
     }
 
-    const now = new Date().toISOString();
+    const trimmedName = vaccinationName.trim();
 
-    const name = vaccinationName.trim();
+    if (!trimmedName) {
+      Alert.alert('예방접종 이름을 입력해주세요');
 
-    addRecord({
-      id: `vaccination-${Date.now()}`,
-      petId: pet.id,
-      type: 'VACCINATION',
+      return;
+    }
 
-      title: `${name} 예방`,
+    setSaving(true);
 
-      vaccinationName: name,
+    try {
+      const record = await createVaccinationRecord(pet.id, trimmedName, memo);
 
-      occurredAt: now,
+      addRecord(record);
+    } catch (error) {
+      console.log('CREATE VACCINATION ERROR:', error);
 
-      createdAt: now,
-    });
+      Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
+
+      setSaving(false);
+
+      return;
+    }
 
     if (nextDueDate) {
-      const scheduleId = `care-${Date.now()}`;
+      try {
+        await saveNextSchedule(trimmedName, toDateString(nextDueDate));
+      } catch (error) {
+        console.log('CREATE CARE SCHEDULE ERROR:', error);
 
-      const dueDate = toDateString(nextDueDate);
-
-      const repeat = getRepeat();
-
-      addSchedule({
-        id: scheduleId,
-        petId: pet.id,
-        type: 'VACCINATION',
-        name,
-        dueDate,
-
-        repeat,
-
-        notificationEnabled: true,
-
-        createdAt: now,
-      });
-
-      const notificationId = await scheduleCareNotification({
-        scheduleId,
-        petName: pet.name,
-        careName: name,
-        dueDate,
-      });
-
-      if (notificationId) {
-        updateSchedule(scheduleId, {
-          notificationId,
-        });
+        // 예방 기록은 이미 저장됐으므로 재시도로 기록이 중복되지 않게 화면은 닫는다.
+        Alert.alert(
+          '다음 예정일을 등록하지 못했어요',
+          '예방 기록은 저장됐어요. 관리 일정에서 다시 등록해주세요.',
+        );
       }
     }
 
+    setSaving(false);
+
     router.back();
+  };
+
+  /**
+   * 다음 예정일을 서버에 저장하고,
+   * 홈의 오늘 할 일과 알림을 위해 로컬 일정에도 추가한다.
+   */
+  const saveNextSchedule = async (name: string, dueDate: string) => {
+    if (!pet) {
+      return;
+    }
+
+    const created = await createCareSchedule({
+      petId: pet.id,
+      type: 'VACCINATION',
+      name,
+      dueDate,
+      repeat: getRepeat(),
+    });
+
+    addSchedule({
+      ...created,
+      notificationEnabled: true,
+      notificationTime: DEFAULT_NOTIFICATION_TIME,
+    });
+
+    const notificationId = await scheduleCareNotification({
+      scheduleId: created.id,
+      petName: pet.name,
+      careName: name,
+      dueDate,
+    });
+
+    if (notificationId) {
+      updateSchedule(created.id, { notificationId });
+    }
   };
 
   return (
@@ -138,7 +171,13 @@ export default function VaccinationRecordScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={false}
+      >
         <AppText variant="heading1">예방 관리를 기록해볼까요?</AppText>
 
         <AppText variant="body1" color="secondary" style={styles.description}>
@@ -188,7 +227,8 @@ export default function VaccinationRecordScreen() {
                 onChange={(event, selectedDate) => {
                   setShowDatePicker(false);
 
-                  if (selectedDate) {
+                  // Android는 취소(dismissed) 시에도 기존 value로 onChange를 호출한다.
+                  if (event.type === 'set' && selectedDate) {
                     setNextDueDate(selectedDate);
                   }
                 }}
@@ -240,13 +280,34 @@ export default function VaccinationRecordScreen() {
               })}
             </View>
           </View>
+
+          <View style={styles.field}>
+            <View style={styles.labelRow}>
+              <AppText variant="label">메모</AppText>
+
+              <AppText variant="label" color="tertiary">
+                선택
+              </AppText>
+            </View>
+
+            <TextInput
+              value={memo}
+              onChangeText={setMemo}
+              placeholder="예: 동물병원에서 접종, 접종 후 특이 반응 없음"
+              placeholderTextColor={colors.neutral[400]}
+              multiline
+              maxLength={200}
+              style={[styles.input, styles.memoInput]}
+              textAlignVertical="top"
+            />
+          </View>
         </View>
-      </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <PrimaryButton
-          label="예방 기록하기"
-          disabled={!isValid}
+          label={saving ? '기록 중...' : '예방 기록하기'}
+          disabled={!isValid || saving}
           onPress={handleSave}
         />
       </View>
@@ -260,10 +321,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[50],
   },
 
-  content: {
+  scroll: {
     flex: 1,
+  },
+
+  content: {
     paddingHorizontal: 20,
     paddingTop: 80,
+    paddingBottom: 24,
   },
 
   description: {
@@ -303,6 +368,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
 
     color: colors.neutral[900],
+  },
+
+  memoInput: {
+    height: 110,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
 
   dateButton: {

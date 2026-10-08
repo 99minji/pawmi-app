@@ -1,8 +1,10 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -11,6 +13,7 @@ import {
 import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
+import { createMedicationRecord } from '@/services/health';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
 
@@ -19,39 +22,49 @@ export default function MedicationRecordScreen() {
 
   const [dosageText, setDosageText] = useState('');
 
+  const [memo, setMemo] = useState('');
+
+  const [saving, setSaving] = useState(false);
+
   const pet = usePetStore((state) => state.pet);
 
   const addRecord = useHealthStore((state) => state.addRecord);
 
   const isValid = medicationName.trim().length > 0;
 
-  const handleSave = () => {
-    if (!pet || !isValid) {
+  const handleSave = async () => {
+    if (!pet || saving) {
       return;
     }
 
-    const now = new Date().toISOString();
+    const trimmedName = medicationName.trim();
 
-    const name = medicationName.trim();
+    if (!trimmedName) {
+      Alert.alert('약 이름을 입력해주세요');
 
-    const dosage = dosageText.trim();
+      return;
+    }
 
-    addRecord({
-      id: `medication-${Date.now()}`,
-      petId: pet.id,
-      type: 'MEDICATION',
+    setSaving(true);
 
-      title: `${name} 투약`,
+    try {
+      const record = await createMedicationRecord(
+        pet.id,
+        trimmedName,
+        dosageText,
+        memo,
+      );
 
-      medicationName: name,
+      addRecord(record);
 
-      dosageText: dosage.length > 0 ? dosage : undefined,
+      router.back();
+    } catch (error) {
+      console.log('CREATE MEDICATION ERROR:', error);
 
-      occurredAt: now,
-      createdAt: now,
-    });
-
-    router.back();
+      Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -59,7 +72,13 @@ export default function MedicationRecordScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={false}
+      >
         <View>
           <AppText variant="heading1">먹인 약을 기록해볼까요?</AppText>
 
@@ -86,7 +105,7 @@ export default function MedicationRecordScreen() {
 
           <View style={styles.field}>
             <View style={styles.labelRow}>
-              <AppText variant="label">복용량 · 메모</AppText>
+              <AppText variant="label">복용량</AppText>
 
               <AppText variant="label" color="tertiary">
                 선택
@@ -96,7 +115,27 @@ export default function MedicationRecordScreen() {
             <TextInput
               value={dosageText}
               onChangeText={setDosageText}
-              placeholder="예: 1정, 저녁 식후"
+              placeholder="예: 1정"
+              placeholderTextColor={colors.neutral[400]}
+              maxLength={50}
+              style={styles.input}
+              returnKeyType="next"
+            />
+          </View>
+
+          <View style={styles.field}>
+            <View style={styles.labelRow}>
+              <AppText variant="label">복용 메모</AppText>
+
+              <AppText variant="label" color="tertiary">
+                선택
+              </AppText>
+            </View>
+
+            <TextInput
+              value={memo}
+              onChangeText={setMemo}
+              placeholder="예: 저녁 식후에 사료에 섞어서 먹였어요"
               placeholderTextColor={colors.neutral[400]}
               multiline
               maxLength={200}
@@ -105,12 +144,12 @@ export default function MedicationRecordScreen() {
             />
           </View>
         </View>
-      </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <PrimaryButton
-          label="투약 기록하기"
-          disabled={!isValid}
+          label={saving ? '기록 중...' : '기록하기'}
+          disabled={!isValid || saving}
           onPress={handleSave}
         />
       </View>
@@ -124,10 +163,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[50],
   },
 
-  content: {
+  scroll: {
     flex: 1,
+  },
+
+  content: {
     paddingHorizontal: 20,
     paddingTop: 80,
+    paddingBottom: 24,
   },
 
   description: {

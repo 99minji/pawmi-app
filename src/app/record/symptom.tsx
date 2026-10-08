@@ -1,8 +1,10 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -11,11 +13,16 @@ import {
 import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
+import { createSymptomRecord } from '@/services/health';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
 
 export default function SymptomRecordScreen() {
   const [symptom, setSymptom] = useState('');
+
+  const [memo, setMemo] = useState('');
+
+  const [saving, setSaving] = useState(false);
 
   const pet = usePetStore((state) => state.pet);
 
@@ -23,25 +30,34 @@ export default function SymptomRecordScreen() {
 
   const isValid = symptom.trim().length > 0;
 
-  const handleSave = () => {
-    if (!pet || !isValid) {
+  const handleSave = async () => {
+    if (!pet || saving) {
       return;
     }
 
-    const now = new Date().toISOString();
-    const symptomText = symptom.trim();
+    const trimmedSymptom = symptom.trim();
 
-    addRecord({
-      id: `symptom-${Date.now()}`,
-      petId: pet.id,
-      type: 'SYMPTOM',
-      title: symptomText,
-      symptom: symptomText,
-      occurredAt: now,
-      createdAt: now,
-    });
+    if (!trimmedSymptom) {
+      Alert.alert('증상을 입력해주세요');
 
-    router.back();
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const record = await createSymptomRecord(pet.id, trimmedSymptom, memo);
+
+      addRecord(record);
+
+      router.back();
+    } catch (error) {
+      console.log('CREATE SYMPTOM ERROR:', error);
+
+      Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -49,7 +65,13 @@ export default function SymptomRecordScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={false}
+      >
         <AppText variant="heading1">어떤 증상이 있었나요?</AppText>
 
         <AppText variant="body1" color="secondary" style={styles.description}>
@@ -66,12 +88,33 @@ export default function SymptomRecordScreen() {
           style={styles.input}
           textAlignVertical="top"
         />
-      </View>
+
+        <View style={styles.memoField}>
+          <View style={styles.labelRow}>
+            <AppText variant="label">메모</AppText>
+
+            <AppText variant="label" color="tertiary">
+              선택
+            </AppText>
+          </View>
+
+          <TextInput
+            value={memo}
+            onChangeText={setMemo}
+            placeholder="예: 저녁 이후로는 괜찮아 보였어요"
+            placeholderTextColor={colors.neutral[400]}
+            multiline
+            maxLength={500}
+            style={[styles.input, styles.memoInput]}
+            textAlignVertical="top"
+          />
+        </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <PrimaryButton
-          label="기록하기"
-          disabled={!isValid}
+          label={saving ? '기록 중...' : '기록하기'}
+          disabled={!isValid || saving}
           onPress={handleSave}
         />
       </View>
@@ -85,10 +128,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[50],
   },
 
-  content: {
+  scroll: {
     flex: 1,
+  },
+
+  content: {
     paddingHorizontal: 20,
     paddingTop: 80,
+    paddingBottom: 24,
   },
 
   description: {
@@ -107,6 +154,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: colors.neutral[900],
+  },
+
+  memoField: {
+    marginTop: 28,
+    gap: 10,
+  },
+
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  memoInput: {
+    minHeight: 110,
+    marginTop: 0,
   },
 
   footer: {

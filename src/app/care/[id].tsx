@@ -97,6 +97,12 @@ function CareDetailForm({
     schedule.notificationEnabled ?? true,
   );
 
+  const [notificationTime, setNotificationTime] = useState(
+    schedule.notificationTime ?? '09:00',
+  );
+
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
   const [isSaving, setIsSaving] = useState(false);
 
   // 프리셋에 없는 기존 반복 설정은 저장 시 사라지지 않도록 유지 옵션으로 노출한다.
@@ -139,6 +145,7 @@ function CareDetailForm({
           careName: schedule.name,
 
           dueDate: dueDateString,
+          notificationTime,
         });
 
         nextNotificationId = notificationId ?? undefined;
@@ -150,7 +157,7 @@ function CareDetailForm({
         repeat,
 
         notificationEnabled,
-
+        notificationTime,
         notificationId: nextNotificationId,
       });
 
@@ -192,11 +199,9 @@ function CareDetailForm({
         showsVerticalScrollIndicator={false}
       >
         <AppText variant="heading1">관리 일정</AppText>
-
         <AppText variant="body1" color="secondary" style={styles.description}>
           날짜와 반복 주기를 변경할 수 있어요.
         </AppText>
-
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}>
             <CalendarDays size={22} color={colors.primary[700]} />
@@ -214,7 +219,6 @@ function CareDetailForm({
             </AppText>
           </View>
         </View>
-
         <View style={styles.section}>
           <AppText variant="heading2">예정일</AppText>
 
@@ -259,7 +263,6 @@ function CareDetailForm({
             />
           )}
         </View>
-
         <View style={styles.section}>
           <AppText variant="heading2">반복</AppText>
 
@@ -296,7 +299,6 @@ function CareDetailForm({
             })}
           </View>
         </View>
-
         <View style={styles.section}>
           <AppText variant="heading2">알림</AppText>
 
@@ -314,7 +316,7 @@ function CareDetailForm({
                   color="secondary"
                   style={styles.settingDescription}
                 >
-                  예정일 오전 9시에 알려드려요.
+                  예정일에 알림을 보내드려요.
                 </AppText>
               </View>
             </View>
@@ -331,8 +333,52 @@ function CareDetailForm({
               }
             />
           </View>
-        </View>
 
+          {notificationEnabled && (
+            <Pressable
+              style={styles.timeRow}
+              onPress={() => setShowTimePicker(true)}
+            >
+              <View>
+                <AppText variant="body1">알림 시간</AppText>
+
+                <AppText
+                  variant="body2"
+                  color="secondary"
+                  style={styles.settingDescription}
+                >
+                  예정일 {formatTime(notificationTime)}
+                </AppText>
+              </View>
+
+              <AppText variant="body1" color="brand">
+                {formatTime(notificationTime)}
+              </AppText>
+            </Pressable>
+          )}
+
+          {showTimePicker && (
+            <DateTimePicker
+              value={timeStringToDate(notificationTime)}
+              mode="time"
+              locale="ko-KR"
+              is24Hour={false}
+              onChange={(event, selectedDate) => {
+                if (Platform.OS === 'android') {
+                  setShowTimePicker(false);
+                }
+
+                if (event.type === 'dismissed') {
+                  return;
+                }
+
+                if (selectedDate) {
+                  setNotificationTime(toTimeString(selectedDate));
+                }
+              }}
+            />
+          )}
+        </View>
         <Pressable style={styles.deleteButton} onPress={handleDelete}>
           <Trash2 size={18} color={colors.error[500]} />
 
@@ -425,6 +471,31 @@ function formatScheduleType(type: CareSchedule['type']) {
     case 'CHECKUP':
       return '정기 검진';
   }
+}
+
+function timeStringToDate(timeString: string) {
+  const [hour, minute] = timeString.split(':').map(Number);
+
+  const date = new Date();
+
+  date.setHours(hour, minute, 0, 0);
+
+  return date;
+}
+
+function toTimeString(date: Date) {
+  const hour = String(date.getHours()).padStart(2, '0');
+
+  const minute = String(date.getMinutes()).padStart(2, '0');
+
+  return `${hour}:${minute}`;
+}
+
+function formatTime(timeString: string) {
+  return timeStringToDate(timeString).toLocaleTimeString('ko-KR', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 const styles = StyleSheet.create({
@@ -564,6 +635,26 @@ const styles = StyleSheet.create({
     marginTop: 12,
 
     padding: 16,
+
+    borderRadius: 16,
+
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+
+    backgroundColor: colors.neutral[0],
+  },
+
+  timeRow: {
+    minHeight: 64,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+
+    marginTop: 10,
+
+    paddingHorizontal: 16,
+    paddingVertical: 12,
 
     borderRadius: 16,
 
