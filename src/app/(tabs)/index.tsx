@@ -311,6 +311,14 @@ export default function TodayScreen() {
             <AppText variant="body2" color="secondary">
               오늘 예정된 관리가 없어요.
             </AppText>
+
+            <AppText
+              variant="label"
+              color="tertiary"
+              style={styles.taskDescription}
+            >
+              관리 일정은 반려동물 탭에서 예약할 수 있어요.
+            </AppText>
           </View>
         )}
 
@@ -365,14 +373,14 @@ export default function TodayScreen() {
           </View>
 
           <View style={styles.quickRecordContent}>
-            <AppText variant="body1">건강 기록 추가하기</AppText>
+            <AppText variant="body1">건강 기록 남기기</AppText>
 
             <AppText
               variant="body2"
               color="secondary"
               style={styles.quickRecordDescription}
             >
-              체중, 증상, 투약 등을 빠르게 남겨보세요.
+              체중, 증상, 투약 등 이미 있었던 일을 기록해요.
             </AppText>
           </View>
 
@@ -505,6 +513,11 @@ const styles = StyleSheet.create({
 
   petDescription: {
     marginTop: 4,
+  },
+
+  sectionDescription: {
+    marginTop: -6,
+    marginBottom: 12,
   },
 
   sectionTitle: {

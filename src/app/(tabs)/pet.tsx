@@ -4,6 +4,7 @@ import {
   ChevronRight,
   HeartPulse,
   Pencil,
+  Plus,
   Scale,
 } from 'lucide-react-native';
 import { useMemo } from 'react';
@@ -67,6 +68,10 @@ export default function PetScreen() {
   const avatarSource = avatar.idleBody;
 
   const tailSource = avatar.idleTail;
+
+  const openCareCreate = () => {
+    router.push('/care/create');
+  };
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -168,6 +173,18 @@ export default function PetScreen() {
       {/* 예정된 관리 */}
       <View style={styles.sectionHeader}>
         <AppText variant="heading2">예정된 관리</AppText>
+
+        <Pressable
+          style={styles.addScheduleButton}
+          onPress={openCareCreate}
+          hitSlop={8}
+        >
+          <Plus size={16} color={colors.primary[700]} />
+
+          <AppText variant="label" color="brand">
+            일정 예약
+          </AppText>
+        </Pressable>
       </View>
 
       {upcomingSchedules.length > 0 ? (
@@ -216,7 +233,7 @@ export default function PetScreen() {
           ))}
         </View>
       ) : (
-        <View style={styles.emptyScheduleCard}>
+        <Pressable style={styles.emptyScheduleCard} onPress={openCareCreate}>
           <View style={styles.emptyScheduleIcon}>
             <CalendarDays size={22} color={colors.primary[700]} />
           </View>
@@ -229,10 +246,12 @@ export default function PetScreen() {
               color="secondary"
               style={styles.emptyDescription}
             >
-              예방이나 관리 일정을 등록하면 여기에서 확인할 수 있어요.
+              심장사상충, 접종, 검진 일정을 예약하면 날짜에 맞춰 알려드려요.
             </AppText>
           </View>
-        </View>
+
+          <ChevronRight size={18} color={colors.neutral[400]} />
+        </Pressable>
       )}
 
       <Pressable onPress={handleLogout} style={styles.logoutContent}>
@@ -392,6 +411,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
 
     marginBottom: 12,
+  },
+
+  addScheduleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: colors.primary[50],
   },
 
   infoCard: {
