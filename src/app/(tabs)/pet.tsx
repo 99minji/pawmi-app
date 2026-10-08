@@ -13,6 +13,7 @@ import { AppText } from '@/components/common/AppText';
 import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { colors } from '@/constants/colors';
 import { getPetAvatar } from '@/constants/petAvatars';
+import { supabase } from '@/lib/supabase';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
@@ -21,6 +22,12 @@ import { parseDateString } from '@/utils/date';
 import { formatGender, formatPetAge } from '@/utils/pet';
 
 export default function PetScreen() {
+  const clearPet = usePetStore((state) => state.clearPet);
+
+  const clearRecords = useHealthStore((state) => state.clearRecords);
+
+  const clearSchedules = useCareScheduleStore((state) => state.clearSchedules);
+
   const pet = usePetStore((state) => state.pet);
 
   const records = useHealthStore((state) => state.records);
@@ -66,6 +73,20 @@ export default function PetScreen() {
   const avatarSource = avatar.idleBody;
 
   const tailSource = avatar.idleTail;
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      return;
+    }
+
+    clearPet();
+    clearRecords();
+    clearSchedules();
+
+    router.replace('/');
+  };
 
   return (
     <ScrollView
@@ -221,24 +242,15 @@ export default function PetScreen() {
         </View>
       )}
 
-      {/* 프로필 수정 */}
-      <Pressable
-        style={styles.profileEditRow}
-        onPress={() => router.push('/pet/edit')}
-      >
-        <View style={styles.editContent}>
-          <AppText variant="body1">프로필 수정</AppText>
-
-          <AppText
-            variant="body2"
-            color="secondary"
-            style={styles.editDescription}
-          >
-            이름, 생일, 품종 등을 변경할 수 있어요.
-          </AppText>
-        </View>
-
-        <ChevronRight size={20} color={colors.neutral[400]} />
+      <Pressable onPress={handleLogout} style={styles.logoutContent}>
+        <AppText
+          variant="body1"
+          style={{
+            color: colors.neutral[0],
+          }}
+        >
+          로그아웃
+        </AppText>
       </Pressable>
     </ScrollView>
   );
@@ -555,12 +567,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
 
-  editContent: {
-    flex: 1,
-    paddingRight: 12,
-  },
-
-  editDescription: {
-    marginTop: 4,
+  logoutContent: {
+    backgroundColor: colors.error[500],
+    borderRadius: 16,
+    padding: 16,
+    color: colors.neutral[0],
+    alignItems: 'center',
   },
 });

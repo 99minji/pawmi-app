@@ -8,27 +8,24 @@ import {
   ShieldCheck,
 } from 'lucide-react-native';
 import { useMemo, useRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
 import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { QuickRecordSheet } from '@/components/record/QuickRecordSheet';
 import { colors } from '@/constants/colors';
 import { petAvatars } from '@/constants/petAvatars';
+import { completeCareScheduleById, createCareSchedule } from '@/services/care';
+import { createVaccinationRecord } from '@/services/health';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
 import type { CareSchedule } from '@/types/care';
 import { addRepeatToDate } from '@/utils/care';
 import { getHealthInsight, hasRecentRecord } from '@/utils/healthInsight';
-import { createId } from '@/utils/id';
-import {
-  cancelCareNotification,
-  DEFAULT_NOTIFICATION_TIME,
-  scheduleCareNotification,
-} from '@/utils/notification';
 import { formatGender, formatPetAge } from '@/utils/pet';
 import BottomSheet from '@gorhom/bottom-sheet';
+import { router } from 'expo-router';
 
 const renderScheduleIcon = (type: CareSchedule['type']) => {
   switch (type) {
@@ -74,12 +71,12 @@ export default function TodayScreen() {
 
   const schedules = useCareScheduleStore((state) => state.schedules);
 
-  const addSchedule = useCareScheduleStore((state) => state.addSchedule);
+  const replaceSchedule = useCareScheduleStore(
+    (state) => state.replaceSchedule,
+  );
 
-  const updateSchedule = useCareScheduleStore((state) => state.updateSchedule);
-
-  const completeSchedule = useCareScheduleStore(
-    (state) => state.completeSchedule,
+  const addScheduleFromDb = useCareScheduleStore(
+    (state) => state.addScheduleFromDb,
   );
 
   const quickRecordSheetRef = useRef<BottomSheet>(null);
@@ -146,67 +143,48 @@ export default function TodayScreen() {
       return;
     }
 
-    const now = new Date().toISOString();
-
-    completeSchedule(schedule.id);
-
     try {
-      await cancelCareNotification(schedule.notificationId);
-    } catch (error) {
-      console.warn('알림 취소에 실패했어요.', error);
-    }
+      // 1. 현재 일정을 DB에서 완료 처리
+      const completedSchedule = await completeCareScheduleById(schedule.id);
 
-    if (schedule.type === 'VACCINATION') {
-      addRecord({
-        id: createId('vaccination'),
-        petId: pet.id,
-        type: 'VACCINATION',
-        title: `${schedule.name} 예방`,
-        vaccinationName: schedule.name,
-        occurredAt: now,
-        createdAt: now,
+      // 2. 화면 상태에도 DB 결과 반영
+      replaceSchedule(completedSchedule);
+
+      // 3. 예방접종 일정이었다면
+      // 실제 건강 기록에도 남긴다.
+      if (schedule.type === 'VACCINATION') {
+        const record = await createVaccinationRecord(pet.id, schedule.name);
+
+        addRecord(record);
+      }
+
+      // 4. 반복 일정이 없다면 종료
+      if (!schedule.repeat) {
+        return;
+      }
+
+      // 5. 다음 예정일 계산
+      const nextDueDate = addRepeatToDate(schedule.dueDate, schedule.repeat);
+
+      // 6. DB에 다음 일정 생성
+      const nextSchedule = await createCareSchedule({
+        petId: schedule.petId,
+
+        type: schedule.type,
+
+        name: schedule.name,
+
+        dueDate: nextDueDate,
+
+        repeat: schedule.repeat,
       });
-    }
 
-    if (!schedule.repeat) {
-      return;
-    }
+      // 7. 화면에 바로 반영
+      addScheduleFromDb(nextSchedule);
+    } catch (error) {
+      console.log('COMPLETE CARE ERROR:', error);
 
-    const nextDueDate = addRepeatToDate(schedule.dueDate, schedule.repeat);
-
-    const nextScheduleId = createId('care');
-
-    const notificationEnabled = schedule.notificationEnabled ?? true;
-
-    const notificationTime =
-      schedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME;
-
-    addSchedule({
-      id: nextScheduleId,
-      petId: schedule.petId,
-      type: schedule.type,
-      name: schedule.name,
-      dueDate: nextDueDate,
-      repeat: schedule.repeat,
-      notificationEnabled,
-      notificationTime,
-      createdAt: now,
-    });
-
-    if (!notificationEnabled) {
-      return;
-    }
-
-    const notificationId = await scheduleCareNotification({
-      scheduleId: nextScheduleId,
-      petName: pet.name,
-      careName: schedule.name,
-      dueDate: nextDueDate,
-      notificationTime,
-    });
-
-    if (notificationId) {
-      updateSchedule(nextScheduleId, { notificationId });
+      Alert.alert('완료 처리하지 못했어요', '잠시 후 다시 시도해주세요.');
     }
   };
 
@@ -281,7 +259,10 @@ export default function TodayScreen() {
               </AppText>
             </View>
 
-            <Pressable style={styles.profileButton}>
+            <Pressable
+              style={styles.profileButton}
+              onPress={() => router.push('/pet/edit')}
+            >
               <ChevronRight size={20} color={colors.primary[700]} />
             </Pressable>
           </View>

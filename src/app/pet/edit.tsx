@@ -17,7 +17,6 @@ import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { colors } from '@/constants/colors';
 import { getPetAvatar, petAvatars } from '@/constants/petAvatars';
-import { supabase } from '@/lib/supabase';
 import { updatePetById } from '@/services/pet';
 import { usePetStore } from '@/stores/usePetStore';
 import type { AvatarBreed, Gender, Pet } from '@/types/pet';
@@ -93,15 +92,6 @@ function PetEditForm({ pet }: { pet: Pet }) {
     }
   };
 
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-      return;
-    }
-
-    router.replace('/');
-  };
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -257,17 +247,6 @@ function PetEditForm({ pet }: { pet: Pet }) {
           onPress={handleSave}
         />
       </View>
-
-      <Pressable onPress={handleLogout}>
-        <AppText
-          variant="body1"
-          style={{
-            color: colors.error[500],
-          }}
-        >
-          로그아웃
-        </AppText>
-      </Pressable>
     </KeyboardAvoidingView>
   );
 }

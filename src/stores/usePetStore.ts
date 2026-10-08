@@ -6,24 +6,32 @@ type PetState = {
   pet: Pet | null;
 
   setPet: (pet: Pet) => void;
-  updatePet: (data: Partial<Pet>) => void;
+
+  updatePet: (updates: Partial<Pet>) => void;
+
   clearPet: () => void;
 };
 
 export const usePetStore = create<PetState>((set) => ({
   pet: null,
 
-  setPet: (pet) => set({ pet }),
+  setPet: (pet) =>
+    set({
+      pet,
+    }),
 
-  updatePet: (data) =>
+  updatePet: (updates) =>
     set((state) => ({
       pet: state.pet
         ? {
             ...state.pet,
-            ...data,
+            ...updates,
           }
         : null,
     })),
 
-  clearPet: () => set({ pet: null }),
+  clearPet: () =>
+    set({
+      pet: null,
+    }),
 }));
