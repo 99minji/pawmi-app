@@ -44,9 +44,9 @@ export default function VaccinationRecordScreen() {
   const pet = usePetStore((state) => state.pet);
 
   const addRecord = useHealthStore((state) => state.addRecord);
-  const addSchedule = useCareScheduleStore((state) => state.addSchedule);
-
-  const updateSchedule = useCareScheduleStore((state) => state.updateSchedule);
+  const addScheduleFromDb = useCareScheduleStore(
+    (state) => state.addScheduleFromDb,
+  );
 
   const isValid = vaccinationName.trim().length > 0;
 
@@ -148,12 +148,6 @@ export default function VaccinationRecordScreen() {
       repeat: getRepeat(),
     });
 
-    addSchedule({
-      ...created,
-      notificationEnabled: true,
-      notificationTime: DEFAULT_NOTIFICATION_TIME,
-    });
-
     const notificationId = await scheduleCareNotification({
       scheduleId: created.id,
       petName: pet.name,
@@ -161,9 +155,12 @@ export default function VaccinationRecordScreen() {
       dueDate,
     });
 
-    if (notificationId) {
-      updateSchedule(created.id, { notificationId });
-    }
+    addScheduleFromDb({
+      ...created,
+      notificationEnabled: true,
+      notificationTime: DEFAULT_NOTIFICATION_TIME,
+      notificationId: notificationId ?? undefined,
+    });
   };
 
   return (

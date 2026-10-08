@@ -7,7 +7,7 @@ import {
   Scale,
 } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
 import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
@@ -22,12 +22,6 @@ import { parseDateString } from '@/utils/date';
 import { formatGender, formatPetAge } from '@/utils/pet';
 
 export default function PetScreen() {
-  const clearPet = usePetStore((state) => state.clearPet);
-
-  const clearRecords = useHealthStore((state) => state.clearRecords);
-
-  const clearSchedules = useCareScheduleStore((state) => state.clearSchedules);
-
   const pet = usePetStore((state) => state.pet);
 
   const records = useHealthStore((state) => state.records);
@@ -78,14 +72,13 @@ export default function PetScreen() {
     const { error } = await supabase.auth.signOut();
 
     if (error) {
+      Alert.alert('로그아웃하지 못했어요', '잠시 후 다시 시도해주세요.');
+
       return;
     }
 
-    clearPet();
-    clearRecords();
-    clearSchedules();
-
-    router.replace('/');
+    // 세션이 사라지면 루트 레이아웃의 Stack.Protected가 로그인 화면으로 보내고,
+    // 이전 사용자 데이터는 app/index.tsx에서 비운다.
   };
 
   return (

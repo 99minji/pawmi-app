@@ -239,3 +239,11 @@ export async function createVetVisitRecord(
 
   return mapHealthRecordFromDb(data);
 }
+
+export async function deleteHealthRecordById(id: string) {
+  const { error } = await supabase.from('health_records').delete().eq('id', id);
+
+  if (error) {
+    throw error;
+  }
+}

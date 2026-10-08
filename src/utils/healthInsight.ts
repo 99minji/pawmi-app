@@ -1,4 +1,5 @@
 import type { HealthRecord } from '@/types/health';
+import { isWeightRecord } from '@/utils/health';
 
 export type HealthInsight =
   | {
@@ -59,10 +60,7 @@ export function getHealthInsight(records: HealthRecord[]): HealthInsight {
       record.type === 'VET_VISIT' && isWithinDays(record.occurredAt, 30),
   );
 
-  const weightRecords = sortedRecords.filter(
-    (record): record is Extract<HealthRecord, { type: 'WEIGHT' }> =>
-      record.type === 'WEIGHT',
-  );
+  const weightRecords = sortedRecords.filter(isWeightRecord);
 
   /**
    * 1순위
