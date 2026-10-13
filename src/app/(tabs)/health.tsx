@@ -65,7 +65,7 @@ export default function HealthScreen() {
         <AppText variant="heading1">건강</AppText>
 
         <AppText variant="body1" color="secondary" style={styles.description}>
-          {pet.name}의 건강 기록을 시간순으로 확인해보세요.
+          {pet.name}의 건강 변화를 기록으로 확인해보세요.
         </AppText>
       </View>
 

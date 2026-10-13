@@ -16,7 +16,11 @@ import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { colors } from '@/constants/colors';
-import { getPetAvatar, petAvatars } from '@/constants/petAvatars';
+import {
+  AVATAR_BREED_LABELS,
+  getPetAvatar,
+  petAvatars,
+} from '@/constants/petAvatars';
 import { updatePetById } from '@/services/pet';
 import { usePetStore } from '@/stores/usePetStore';
 import type { AvatarBreed, Gender, Pet } from '@/types/pet';
@@ -36,7 +40,6 @@ function PetEditForm({ pet }: { pet: Pet }) {
   const setPet = usePetStore((state) => state.setPet);
 
   const [name, setName] = useState(pet.name);
-  const [breed, setBreed] = useState(pet.breed ?? '');
   const [gender, setGender] = useState<Gender>(pet.gender);
 
   const [birthDate, setBirthDate] = useState<Date | null>(
@@ -66,7 +69,7 @@ function PetEditForm({ pet }: { pet: Pet }) {
       const updatedPet = await updatePetById(pet.id, {
         name: name.trim(),
 
-        breed: breed.trim() || undefined,
+        breed: AVATAR_BREED_LABELS[avatarBreed],
 
         gender,
 
@@ -127,24 +130,6 @@ function PetEditForm({ pet }: { pet: Pet }) {
               value={name}
               onChangeText={setName}
               placeholder="이름을 입력해주세요"
-              placeholderTextColor={colors.neutral[400]}
-              style={styles.input}
-            />
-          </View>
-
-          <View style={styles.field}>
-            <View style={styles.labelRow}>
-              <AppText variant="label">품종</AppText>
-
-              <AppText variant="label" color="tertiary">
-                선택
-              </AppText>
-            </View>
-
-            <TextInput
-              value={breed}
-              onChangeText={setBreed}
-              placeholder="예: 포메라니안"
               placeholderTextColor={colors.neutral[400]}
               style={styles.input}
             />
@@ -219,7 +204,7 @@ function PetEditForm({ pet }: { pet: Pet }) {
           </View>
 
           <View style={styles.field}>
-            <AppText variant="label">아바타</AppText>
+            <AppText variant="label">품종</AppText>
 
             <Pressable
               style={[
@@ -234,7 +219,9 @@ function PetEditForm({ pet }: { pet: Pet }) {
                 tailSource={petAvatars.POMERANIAN.idleTail}
               />
 
-              <AppText variant="body2">포메라니안</AppText>
+              <AppText variant="body2">
+                {AVATAR_BREED_LABELS.POMERANIAN}
+              </AppText>
             </Pressable>
           </View>
         </View>
@@ -282,12 +269,6 @@ const styles = StyleSheet.create({
 
   field: {
     gap: 10,
-  },
-
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
   },
 
   input: {

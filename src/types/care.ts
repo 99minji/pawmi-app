@@ -30,3 +30,23 @@ export type CareSchedule = {
 
   createdAt: string;
 };
+
+export type CareSuggestionType = 'CHECKUP' | 'RECORD';
+
+export type CareSuggestionAction =
+  | {
+      type: 'CREATE_CARE';
+      careType: 'CHECKUP';
+    }
+  | {
+      type: 'CREATE_WEIGHT_RECORD';
+    };
+
+export type CareSuggestion = {
+  id: string;
+  type: CareSuggestionType;
+  title: string;
+  description: string;
+  priority: number;
+  action?: CareSuggestionAction;
+};

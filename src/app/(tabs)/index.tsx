@@ -1,5 +1,4 @@
 import {
-  Bell,
   ChevronRight,
   HeartPulse,
   Hospital,
@@ -20,10 +19,11 @@ import { createVaccinationRecord } from '@/services/health';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
-import type { CareSchedule } from '@/types/care';
+import type { CareSchedule, CareSuggestion } from '@/types/care';
 import { addRepeatToDate } from '@/utils/care';
-import { getHealthInsight, hasRecentRecord } from '@/utils/healthInsight';
-import { formatGender, formatPetAge } from '@/utils/pet';
+import { getCareSuggestions } from '@/utils/careEngine';
+import { hasRecentRecord } from '@/utils/healthInsight';
+import { formatBreed, formatGender, formatPetAge } from '@/utils/pet';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { router } from 'expo-router';
 
@@ -89,8 +89,6 @@ export default function TodayScreen() {
     [allRecords, pet?.id],
   );
 
-  const healthInsight = useMemo(() => getHealthInsight(records), [records]);
-
   /**
    * 최근 24시간 동안 건강 기록이 있는지
    *
@@ -126,6 +124,18 @@ export default function TodayScreen() {
       ),
     [schedules, pet?.id, todayDateString],
   );
+
+  const careSuggestions = useMemo(() => {
+    if (!pet) {
+      return [];
+    }
+
+    return getCareSuggestions({
+      pet,
+      records,
+      schedules,
+    });
+  }, [pet, records, schedules]);
 
   const openQuickRecordSheet = () => {
     quickRecordSheetRef.current?.expand();
@@ -214,6 +224,29 @@ export default function TodayScreen() {
     ? undefined
     : petAvatars.POMERANIAN.idleTail;
 
+  const primarySuggestion = careSuggestions[0];
+
+  const handleCareSuggestionAction = (suggestion: CareSuggestion) => {
+    if (!suggestion.action) {
+      return;
+    }
+
+    switch (suggestion.action.type) {
+      case 'CREATE_CARE':
+        router.push({
+          pathname: '/care/create',
+          params: {
+            type: suggestion.action.careType,
+          },
+        });
+        break;
+
+      case 'CREATE_WEIGHT_RECORD':
+        router.push('/record/weight');
+        break;
+    }
+  };
+
   return (
     <View style={styles.screen}>
       <ScrollView
@@ -234,10 +267,6 @@ export default function TodayScreen() {
                 챙겨볼까요?
               </AppText>
             </View>
-
-            <Pressable style={styles.iconButton}>
-              <Bell size={22} color={colors.neutral[800]} />
-            </Pressable>
           </View>
 
           <View style={styles.avatarArea}>
@@ -259,7 +288,7 @@ export default function TodayScreen() {
                 color="secondary"
                 style={styles.petDescription}
               >
-                {pet.breed ?? '포메라니안'} · {formatPetAge(pet)} ·{' '}
+                {formatBreed(pet)} · {formatPetAge(pet)} ·{' '}
                 {formatGender(pet.gender)}
               </AppText>
             </View>
@@ -327,46 +356,42 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {/* 최근 변화 */}
-        <AppText variant="heading2" style={styles.sectionTitle}>
-          최근 변화
-        </AppText>
+        {primarySuggestion && (
+          <View style={styles.careSuggestionCard}>
+            <AppText variant="label" color="brand">
+              포우미가 챙겨봤어요
+            </AppText>
 
-        <View style={styles.insightCard}>
-          <HeartPulse size={22} color={colors.primary[700]} />
+            <AppText variant="body1" style={styles.careSuggestionTitle}>
+              {primarySuggestion.title}
+            </AppText>
 
-          <View style={styles.insightContent}>
-            {healthInsight ? (
-              <>
-                <AppText variant="body1">{healthInsight.title}</AppText>
+            <AppText
+              variant="body2"
+              color="secondary"
+              style={styles.careSuggestionDescription}
+            >
+              {primarySuggestion.description}
+            </AppText>
 
-                <AppText
-                  variant="body2"
-                  color="secondary"
-                  style={styles.insightDescription}
-                >
-                  {healthInsight.description}
+            {primarySuggestion.action && (
+              <Pressable
+                style={styles.careSuggestionAction}
+                onPress={() => handleCareSuggestionAction(primarySuggestion)}
+              >
+                <AppText variant="label" color="brand">
+                  {primarySuggestion.action.type === 'CREATE_CARE'
+                    ? '일정 추가하기'
+                    : '기록 남기기'}
                 </AppText>
-              </>
-            ) : (
-              <>
-                <AppText variant="body1">아직 확인할 변화가 없어요</AppText>
-
-                <AppText
-                  variant="body2"
-                  color="secondary"
-                  style={styles.insightDescription}
-                >
-                  건강 기록을 쌓으면 변화를 정리해서 보여드릴게요.
-                </AppText>
-              </>
+              </Pressable>
             )}
           </View>
-        </View>
+        )}
 
-        {/* 빠른 기록 */}
+        {/* 건강 기록 */}
         <AppText variant="heading2" style={styles.sectionTitle}>
-          빠른 기록
+          건강 기록
         </AppText>
 
         <Pressable
@@ -391,29 +416,6 @@ export default function TodayScreen() {
 
           <ChevronRight size={20} color={colors.neutral[400]} />
         </Pressable>
-
-        {/* 최근 기록 */}
-        <AppText variant="heading2" style={styles.sectionTitle}>
-          최근 기록
-        </AppText>
-
-        {records.length === 0 ? (
-          <AppText variant="body2" color="secondary">
-            아직 기록이 없어요.
-          </AppText>
-        ) : (
-          <View style={styles.recentList}>
-            {records.slice(0, 3).map((record) => (
-              <View key={record.id} style={styles.recentRecord}>
-                <AppText variant="body1">{record.title}</AppText>
-
-                <AppText variant="body2" color="secondary">
-                  {new Date(record.occurredAt).toLocaleDateString('ko-KR')}
-                </AppText>
-              </View>
-            ))}
-          </View>
-        )}
       </ScrollView>
 
       <QuickRecordSheet ref={quickRecordSheetRef} />
@@ -442,15 +444,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 64,
     paddingBottom: 40,
-  },
-
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
   },
 
   hero: {
@@ -520,11 +513,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  sectionDescription: {
-    marginTop: -6,
-    marginBottom: 12,
-  },
-
   sectionTitle: {
     marginBottom: 12,
     marginTop: 4,
@@ -575,34 +563,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[600],
   },
 
-  insightCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.primary[100],
-    borderRadius: 16,
-    padding: 16,
+  careSuggestionCard: {
     marginBottom: 28,
-  },
-
-  insightContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-
-  insightDescription: {
-    marginTop: 4,
-  },
-
-  recentList: {
-    gap: 10,
-  },
-
-  recentRecord: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 14,
+    padding: 18,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    padding: 16,
-    gap: 4,
+    borderColor: colors.primary[200],
+    backgroundColor: colors.primary[50],
+  },
+
+  careSuggestionTitle: {
+    marginTop: 8,
+  },
+
+  careSuggestionDescription: {
+    marginTop: 6,
+  },
+
+  careSuggestionAction: {
+    alignSelf: 'flex-start',
+    marginTop: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: colors.primary[100],
   },
 
   quickRecordButton: {

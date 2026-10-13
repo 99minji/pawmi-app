@@ -5,7 +5,7 @@ import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { colors } from '@/constants/colors';
-import { petAvatars } from '@/constants/petAvatars';
+import { AVATAR_BREED_LABELS, petAvatars } from '@/constants/petAvatars';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { usePetStore } from '@/stores/usePetStore';
 
@@ -45,6 +45,7 @@ export default function AvatarScreen() {
         gender,
         birthDate: birthDate || undefined,
         estimatedAge: estimatedAge ?? undefined,
+        breed: avatarBreed ? AVATAR_BREED_LABELS[avatarBreed] : undefined,
         avatarBreed: avatarBreed ?? undefined,
       });
 
@@ -62,7 +63,7 @@ export default function AvatarScreen() {
     <OnboardingLayout
       step={5}
       total={5}
-      title={`${name}와 닮은 모습을 골라주세요.`}
+      title={`${name}의 품종을 골라주세요.`}
       description="나중에 언제든 바꿀 수 있어요."
       footer={
         <PrimaryButton
@@ -90,7 +91,7 @@ export default function AvatarScreen() {
             variant="body2"
             color={avatarBreed === 'POMERANIAN' ? 'brand' : 'primary'}
           >
-            포메라니안
+            {AVATAR_BREED_LABELS.POMERANIAN}
           </AppText>
         </Pressable>
       </View>

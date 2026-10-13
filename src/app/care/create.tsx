@@ -1,5 +1,5 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
 import {
@@ -74,13 +74,20 @@ const REPEAT_OPTIONS: {
 ];
 
 export default function CareCreateScreen() {
+  const { type: typeParam } = useLocalSearchParams<{
+    type?: string;
+  }>();
+
   const pet = usePetStore((state) => state.pet);
 
   const addScheduleFromDb = useCareScheduleStore(
     (state) => state.addScheduleFromDb,
   );
 
-  const [type, setType] = useState<CareScheduleType>('HEARTWORM');
+  const [type, setType] = useState<CareScheduleType>(
+    () =>
+      CARE_TYPES.find((item) => item.value === typeParam)?.value ?? 'HEARTWORM',
+  );
 
   const [name, setName] = useState('');
 
