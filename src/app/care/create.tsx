@@ -1,10 +1,8 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
 import {
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +12,9 @@ import {
 
 import { HeartPulse, Hospital, Pill, ShieldCheck } from 'lucide-react-native';
 
+import { NotificationSetting } from '@/components/care/NotificationSetting';
 import { AppText } from '@/components/common/AppText';
+import { DateField } from '@/components/common/DateField';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
 
@@ -23,11 +23,18 @@ import { createCareSchedule } from '@/services/care';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { usePetStore } from '@/stores/usePetStore';
 
-import type { CareRepeat, CareScheduleType } from '@/types/care';
+import type { CareScheduleType } from '@/types/care';
 
+import {
+  getRepeatFromPreset,
+  getRepeatOptions,
+  type RepeatPreset,
+} from '@/utils/care';
 import { toDateString } from '@/utils/date';
-
-type RepeatPreset = 'NONE' | 'MONTHLY' | 'SIX_MONTHS' | 'YEARLY';
+import {
+  DEFAULT_NOTIFICATION_TIME,
+  scheduleCareNotification,
+} from '@/utils/notification';
 
 const CARE_TYPES: {
   label: string;
@@ -51,28 +58,6 @@ const CARE_TYPES: {
   },
 ];
 
-const REPEAT_OPTIONS: {
-  label: string;
-  value: RepeatPreset;
-}[] = [
-  {
-    label: '반복 없음',
-    value: 'NONE',
-  },
-  {
-    label: '매월',
-    value: 'MONTHLY',
-  },
-  {
-    label: '6개월마다',
-    value: 'SIX_MONTHS',
-  },
-  {
-    label: '매년',
-    value: 'YEARLY',
-  },
-];
-
 export default function CareCreateScreen() {
   const { type: typeParam } = useLocalSearchParams<{
     type?: string;
@@ -93,13 +78,19 @@ export default function CareCreateScreen() {
 
   const [dueDate, setDueDate] = useState(new Date());
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
   const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>('NONE');
+
+  const [notificationEnabled, setNotificationEnabled] = useState(false);
+
+  const [notificationTime, setNotificationTime] = useState(
+    DEFAULT_NOTIFICATION_TIME,
+  );
 
   const [saving, setSaving] = useState(false);
 
   const isValid = name.trim().length > 0;
+
+  const repeatOptions = getRepeatOptions(type);
 
   const handleSave = async () => {
     if (!pet || !isValid || saving) {
@@ -111,17 +102,27 @@ export default function CareCreateScreen() {
     try {
       const schedule = await createCareSchedule({
         petId: pet.id,
-
         type,
-
         name: name.trim(),
-
         dueDate: toDateString(dueDate),
+        repeat: getRepeatFromPreset(repeatPreset),
 
-        repeat: getRepeat(repeatPreset),
+        notificationEnabled,
+        notificationTime,
       });
 
       addScheduleFromDb(schedule);
+
+      if (schedule.notificationEnabled) {
+        await scheduleCareNotification({
+          scheduleId: schedule.id,
+          petName: pet.name,
+          careName: schedule.name,
+          dueDate: schedule.dueDate,
+          notificationTime:
+            schedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
+        });
+      }
 
       router.back();
     } catch (error) {
@@ -160,7 +161,10 @@ export default function CareCreateScreen() {
                 <Pressable
                   key={item.value}
                   style={[styles.typeCard, selected && styles.typeCardSelected]}
-                  onPress={() => setType(item.value)}
+                  onPress={() => {
+                    setType(item.value);
+                    setRepeatPreset('NONE');
+                  }}
                 >
                   {renderTypeIcon(item.value)}
 
@@ -191,39 +195,18 @@ export default function CareCreateScreen() {
         <View style={styles.section}>
           <AppText variant="heading2">예정일</AppText>
 
-          <Pressable
-            style={styles.input}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <AppText variant="body1">
-              {dueDate.toLocaleDateString('ko-KR')}
-            </AppText>
-          </Pressable>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={dueDate}
-              mode="date"
-              locale="ko-KR"
-              minimumDate={new Date()}
-              onChange={(_event, selectedDate) => {
-                if (Platform.OS === 'android') {
-                  setShowDatePicker(false);
-                }
-
-                if (selectedDate) {
-                  setDueDate(selectedDate);
-                }
-              }}
-            />
-          )}
+          <DateField
+            value={dueDate}
+            onChange={setDueDate}
+            minimumDate={new Date()}
+          />
         </View>
 
         <View style={styles.section}>
           <AppText variant="heading2">반복</AppText>
 
           <View style={styles.repeatOptions}>
-            {REPEAT_OPTIONS.map((item) => {
+            {repeatOptions.map((item) => {
               const selected = repeatPreset === item.value;
 
               return (
@@ -246,6 +229,17 @@ export default function CareCreateScreen() {
             })}
           </View>
         </View>
+
+        <View style={styles.section}>
+          <AppText variant="heading2">알림</AppText>
+
+          <NotificationSetting
+            enabled={notificationEnabled}
+            onEnabledChange={setNotificationEnabled}
+            time={notificationTime}
+            onTimeChange={setNotificationTime}
+          />
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -257,31 +251,6 @@ export default function CareCreateScreen() {
       </View>
     </View>
   );
-}
-
-function getRepeat(preset: RepeatPreset): CareRepeat | undefined {
-  switch (preset) {
-    case 'MONTHLY':
-      return {
-        unit: 'MONTH',
-        interval: 1,
-      };
-
-    case 'SIX_MONTHS':
-      return {
-        unit: 'MONTH',
-        interval: 6,
-      };
-
-    case 'YEARLY':
-      return {
-        unit: 'YEAR',
-        interval: 1,
-      };
-
-    default:
-      return undefined;
-  }
 }
 
 function getPlaceholder(type: CareScheduleType) {

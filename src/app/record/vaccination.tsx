@@ -154,21 +154,21 @@ export default function VaccinationRecordScreen() {
       name,
       dueDate,
       repeat: getRepeat(),
-    });
-
-    const notificationId = await scheduleCareNotification({
-      scheduleId: created.id,
-      petName: pet.name,
-      careName: name,
-      dueDate,
-    });
-
-    addScheduleFromDb({
-      ...created,
       notificationEnabled: true,
       notificationTime: DEFAULT_NOTIFICATION_TIME,
-      notificationId: notificationId ?? undefined,
     });
+
+    addScheduleFromDb(created);
+
+    if (created.notificationEnabled) {
+      await scheduleCareNotification({
+        scheduleId: created.id,
+        petName: pet.name,
+        careName: created.name,
+        dueDate: created.dueDate,
+        notificationTime: created.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
+      });
+    }
   };
 
   return (

@@ -22,7 +22,13 @@ import { usePetStore } from '@/stores/usePetStore';
 import type { CareSchedule, CareSuggestion } from '@/types/care';
 import { addRepeatToDate } from '@/utils/care';
 import { getCareSuggestions } from '@/utils/careEngine';
+import { dateToOccurredAt } from '@/utils/date';
 import { hasRecentRecord } from '@/utils/healthInsight';
+import {
+  cancelCareNotification,
+  DEFAULT_NOTIFICATION_TIME,
+  scheduleCareNotification,
+} from '@/utils/notification';
 import { formatBreed, formatGender, formatPetAge } from '@/utils/pet';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { router } from 'expo-router';
@@ -157,8 +163,10 @@ export default function TodayScreen() {
       // 1. 현재 일정을 DB에서 완료 처리
       const completedSchedule = await completeCareScheduleById(schedule.id);
 
-      // 2. 화면 상태에도 DB 결과 반영
+      // 2. 화면 상태에도 DB 결과 반영하고, 예약된 알림은 취소
       replaceSchedule(completedSchedule);
+
+      await cancelCareNotification(schedule.id);
 
       // 3. 예방접종 일정이었다면
       // 실제 건강 기록에도 남긴다.
@@ -167,7 +175,7 @@ export default function TodayScreen() {
           pet.id,
           schedule.name,
           undefined,
-          new Date().toISOString(),
+          dateToOccurredAt(new Date()),
         );
 
         addRecord(record);
@@ -184,18 +192,32 @@ export default function TodayScreen() {
       // 6. DB에 다음 일정 생성
       const nextSchedule = await createCareSchedule({
         petId: schedule.petId,
-
         type: schedule.type,
-
         name: schedule.name,
 
         dueDate: nextDueDate,
 
         repeat: schedule.repeat,
+
+        notificationEnabled: schedule.notificationEnabled,
+
+        notificationTime:
+          schedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
       });
 
-      // 7. 화면에 바로 반영
+      // 7. 화면에 바로 반영하고 다음 일정 알림 예약
       addScheduleFromDb(nextSchedule);
+
+      if (nextSchedule.notificationEnabled) {
+        await scheduleCareNotification({
+          scheduleId: nextSchedule.id,
+          petName: pet.name,
+          careName: nextSchedule.name,
+          dueDate: nextSchedule.dueDate,
+          notificationTime:
+            nextSchedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
+        });
+      }
     } catch (error) {
       console.log('COMPLETE CARE ERROR:', error);
 

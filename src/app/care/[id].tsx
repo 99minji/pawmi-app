@@ -1,47 +1,35 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Bell, CalendarDays, Repeat2, Trash2 } from 'lucide-react-native';
+import { CalendarDays, Repeat2, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import {
-  Alert,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { NotificationSetting } from '@/components/care/NotificationSetting';
 import { RepeatSelector } from '@/components/care/RepeatSelector';
-import { SettingCard } from '@/components/care/SettingCard';
 import { AppText } from '@/components/common/AppText';
+import { DateField } from '@/components/common/DateField';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
+
 import { colors } from '@/constants/colors';
+
 import {
-  completeCareScheduleById,
-  createCareSchedule,
   deleteCareScheduleById,
   updateCareScheduleById,
 } from '@/services/care';
+
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { usePetStore } from '@/stores/usePetStore';
+
 import type { CareSchedule } from '@/types/care';
+
 import {
-  addRepeatToDate,
   formatScheduleType,
   getRepeatFromPreset,
+  getRepeatOptions,
   getRepeatPreset,
-  REPEAT_OPTIONS,
   type RepeatPreset,
 } from '@/utils/care';
-import {
-  formatKoreanDate,
-  formatKoreanTime,
-  parseDateString,
-  parseTimeString,
-  toDateString,
-  toTimeString,
-} from '@/utils/date';
+
+import { parseDateString, toDateString } from '@/utils/date';
 import {
   cancelCareNotification,
   DEFAULT_NOTIFICATION_TIME,
@@ -49,16 +37,15 @@ import {
 } from '@/utils/notification';
 
 export default function CareDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-
-  const pet = usePetStore((state) => state.pet);
+  const { id } = useLocalSearchParams<{
+    id: string;
+  }>();
 
   const schedule = useCareScheduleStore((state) =>
     state.schedules.find((item) => item.id === id),
   );
 
-  // 스토어 hydration 전에는 schedule이 없으므로, 준비된 뒤에 폼을 마운트해 초기값을 맞춘다.
-  if (!schedule || !pet) {
+  if (!schedule) {
     return (
       <View style={styles.emptyContainer}>
         <AppText variant="body1" color="secondary">
@@ -68,21 +55,11 @@ export default function CareDetailScreen() {
     );
   }
 
-  return (
-    <CareDetailForm key={schedule.id} schedule={schedule} petName={pet.name} />
-  );
+  return <CareDetailForm key={schedule.id} schedule={schedule} />;
 }
 
-function CareDetailForm({
-  schedule,
-  petName,
-}: {
-  schedule: CareSchedule;
-  petName: string;
-}) {
-  const addScheduleFromDb = useCareScheduleStore(
-    (state) => state.addScheduleFromDb,
-  );
+function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
+  const pet = usePetStore((state) => state.pet);
 
   const replaceSchedule = useCareScheduleStore(
     (state) => state.replaceSchedule,
@@ -96,42 +73,48 @@ function CareDetailForm({
     parseDateString(schedule.dueDate),
   );
 
-  const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>(() =>
-    getRepeatPreset(schedule.repeat),
+  const typeRepeatOptions = getRepeatOptions(schedule.type);
+
+  const savedPreset = getRepeatPreset(schedule.repeat);
+
+  /**
+   * 기존 데이터가 현재 UI 프리셋에 없는 값이라면
+   * 수정하지 않는 한 기존 값을 유지할 수 있도록 한다.
+   */
+  const hasCustomRepeat = !typeRepeatOptions.some(
+    (option) => option.value === savedPreset,
+  );
+
+  const repeatOptions = hasCustomRepeat
+    ? [
+        {
+          label: '기존 설정 유지',
+          value: 'CUSTOM' as const,
+        },
+        ...typeRepeatOptions,
+      ]
+    : typeRepeatOptions;
+
+  const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>(
+    hasCustomRepeat ? 'CUSTOM' : savedPreset,
   );
 
   const [notificationEnabled, setNotificationEnabled] = useState(
-    schedule.notificationEnabled ?? true,
+    schedule.notificationEnabled,
   );
 
   const [notificationTime, setNotificationTime] = useState(
     schedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
   );
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const [showTimePicker, setShowTimePicker] = useState(false);
-
   const [saving, setSaving] = useState(false);
-
-  // 프리셋에 없는 기존 반복 설정은 저장 시 사라지지 않도록 유지 옵션으로 노출한다.
-  const hasCustomRepeat = getRepeatPreset(schedule.repeat) === 'CUSTOM';
-
-  const repeatOptions = hasCustomRepeat
-    ? [{ label: '기존 설정 유지', value: 'CUSTOM' as const }, ...REPEAT_OPTIONS]
-    : REPEAT_OPTIONS;
 
   const repeat =
     repeatPreset === 'CUSTOM'
       ? schedule.repeat
       : getRepeatFromPreset(repeatPreset);
 
-  /**
-   * 저장 · 완료 · 삭제 공통 처리
-   *
-   * 중복 실행을 막고, 성공하면 화면을 닫고, 실패하면 알림을 띄운다.
-   */
-  const runAction = async (action: () => Promise<void>, errorTitle: string) => {
+  const handleSave = async () => {
     if (saving) {
       return;
     }
@@ -139,86 +122,76 @@ function CareDetailForm({
     setSaving(true);
 
     try {
-      await action();
+      const updatedSchedule = await updateCareScheduleById(schedule.id, {
+        name: schedule.name,
+        dueDate: toDateString(dueDate),
+        repeat,
+
+        notificationEnabled,
+
+        // OFF여도 시간은 유지해서, 다시 켰을 때 사용자가 고른 시간이 남도록 한다.
+        notificationTime,
+      });
+
+      replaceSchedule(updatedSchedule);
+
+      // 기존 알림을 지우고, 알림이 켜져 있으면 수정된 날짜/시간으로 다시 예약한다.
+      if (updatedSchedule.notificationEnabled && pet) {
+        await scheduleCareNotification({
+          scheduleId: updatedSchedule.id,
+          petName: pet.name,
+          careName: updatedSchedule.name,
+          dueDate: updatedSchedule.dueDate,
+          notificationTime:
+            updatedSchedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
+        });
+      } else {
+        await cancelCareNotification(updatedSchedule.id);
+      }
 
       router.back();
     } catch (error) {
-      console.log(`${errorTitle}:`, error);
+      console.log('UPDATE CARE ERROR:', error);
 
-      Alert.alert(errorTitle, '잠시 후 다시 시도해주세요.');
+      Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSave = () =>
-    runAction(async () => {
-      const updatedSchedule = await updateCareScheduleById(schedule.id, {
-        name: schedule.name,
-        dueDate: toDateString(dueDate),
-        repeat,
-      });
-
-      // 알림 설정은 서버에 없으므로 기존 예약을 지우고 다시 예약한 뒤 로컬에 함께 저장한다.
-      await cancelCareNotification(schedule.notificationId);
-
-      const notificationId = notificationEnabled
-        ? await scheduleCareNotification({
-            scheduleId: updatedSchedule.id,
-            petName,
-            careName: updatedSchedule.name,
-            dueDate: updatedSchedule.dueDate,
-            notificationTime,
-          })
-        : null;
-
-      replaceSchedule({
-        ...updatedSchedule,
-        notificationEnabled,
-        notificationTime,
-        notificationId: notificationId ?? undefined,
-      });
-    }, '저장하지 못했어요');
-
-  const handleComplete = () =>
-    runAction(async () => {
-      const completedSchedule = await completeCareScheduleById(schedule.id);
-
-      replaceSchedule(completedSchedule);
-
-      if (!schedule.repeat) {
-        return;
-      }
-
-      const nextSchedule = await createCareSchedule({
-        petId: schedule.petId,
-        type: schedule.type,
-        name: schedule.name,
-        dueDate: addRepeatToDate(schedule.dueDate, schedule.repeat),
-        repeat: schedule.repeat,
-      });
-
-      addScheduleFromDb(nextSchedule);
-    }, '완료 처리하지 못했어요');
-
   const handleDelete = () => {
+    if (saving) {
+      return;
+    }
+
     Alert.alert('일정을 삭제할까요?', '삭제한 일정은 다시 되돌릴 수 없어요.', [
-      { text: '취소', style: 'cancel' },
+      {
+        text: '취소',
+        style: 'cancel',
+      },
       {
         text: '삭제',
         style: 'destructive',
-        onPress: () =>
-          runAction(async () => {
+
+        onPress: async () => {
+          setSaving(true);
+
+          try {
             await deleteCareScheduleById(schedule.id);
 
             removeScheduleFromStore(schedule.id);
 
-            try {
-              await cancelCareNotification(schedule.notificationId);
-            } catch (error) {
-              console.warn('알림 취소에 실패했어요.', error);
-            }
-          }, '삭제하지 못했어요'),
+            await cancelCareNotification(schedule.id);
+
+            router.back();
+          } catch (error) {
+            console.log('DELETE CARE ERROR:', error);
+
+            Alert.alert('삭제하지 못했어요', '잠시 후 다시 시도해주세요.');
+          } finally {
+            setSaving(false);
+          }
+        },
       },
     ]);
   };
@@ -232,9 +205,10 @@ function CareDetailForm({
         <AppText variant="heading1">관리 일정</AppText>
 
         <AppText variant="body1" color="secondary" style={styles.description}>
-          날짜와 반복 주기를 변경할 수 있어요.
+          예정일과 반복 주기를 변경할 수 있어요.
         </AppText>
 
+        {/* 일정 요약 */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}>
             <CalendarDays size={22} color={colors.primary[700]} />
@@ -257,31 +231,11 @@ function CareDetailForm({
         <View style={styles.section}>
           <AppText variant="heading2">예정일</AppText>
 
-          <SettingCard
-            icon={CalendarDays}
-            title="관리 날짜"
-            description={formatKoreanDate(dueDate)}
-            onPress={() => setShowDatePicker(true)}
+          <DateField
+            value={dueDate}
+            onChange={setDueDate}
+            minimumDate={new Date()}
           />
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={dueDate}
-              mode="date"
-              locale="ko-KR"
-              minimumDate={new Date()}
-              onChange={(event, selectedDate) => {
-                if (Platform.OS === 'android') {
-                  setShowDatePicker(false);
-                }
-
-                // Android는 취소(dismissed) 시에도 기존 value로 onChange를 호출한다.
-                if (event.type === 'set' && selectedDate) {
-                  setDueDate(selectedDate);
-                }
-              }}
-            />
-          )}
         </View>
 
         {/* 반복 */}
@@ -307,57 +261,15 @@ function CareDetailForm({
         <View style={styles.section}>
           <AppText variant="heading2">알림</AppText>
 
-          <SettingCard
-            icon={Bell}
-            title="관리 알림"
-            description="예정일에 알림을 보내드려요."
-            right={
-              <Switch
-                value={notificationEnabled}
-                onValueChange={setNotificationEnabled}
-                trackColor={{
-                  false: colors.neutral[300],
-                  true: colors.primary[300],
-                }}
-                thumbColor={
-                  notificationEnabled ? colors.primary[700] : colors.neutral[0]
-                }
-              />
-            }
+          <NotificationSetting
+            enabled={notificationEnabled}
+            onEnabledChange={setNotificationEnabled}
+            time={notificationTime}
+            onTimeChange={setNotificationTime}
           />
-
-          {notificationEnabled && (
-            <SettingCard
-              title="알림 시간"
-              description={`예정일 ${formatKoreanTime(notificationTime)}`}
-              right={
-                <AppText variant="body1" color="brand">
-                  {formatKoreanTime(notificationTime)}
-                </AppText>
-              }
-              onPress={() => setShowTimePicker(true)}
-            />
-          )}
-
-          {showTimePicker && (
-            <DateTimePicker
-              value={parseTimeString(notificationTime)}
-              mode="time"
-              locale="ko-KR"
-              is24Hour={false}
-              onChange={(event, selectedDate) => {
-                if (Platform.OS === 'android') {
-                  setShowTimePicker(false);
-                }
-
-                if (event.type === 'set' && selectedDate) {
-                  setNotificationTime(toTimeString(selectedDate));
-                }
-              }}
-            />
-          )}
         </View>
 
+        {/* 삭제 */}
         <Pressable
           style={styles.deleteButton}
           disabled={saving}
@@ -372,23 +284,11 @@ function CareDetailForm({
       </ScrollView>
 
       <View style={styles.footer}>
-        {!schedule.completedAt && (
-          <PrimaryButton
-            label={saving ? '처리 중...' : '오늘 관리 완료'}
-            disabled={saving}
-            onPress={handleComplete}
-          />
-        )}
-
-        <Pressable
-          style={styles.saveButton}
+        <PrimaryButton
+          label={saving ? '저장 중...' : '변경사항 저장하기'}
           disabled={saving}
           onPress={handleSave}
-        >
-          <AppText variant="body1" color="brand">
-            변경사항 저장하기
-          </AppText>
-        </Pressable>
+        />
       </View>
     </View>
   );
@@ -447,14 +347,13 @@ const styles = StyleSheet.create({
 
   section: {
     marginBottom: 28,
+    gap: 12,
   },
 
   sectionHint: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 8,
-    marginBottom: 12,
   },
 
   deleteButton: {
@@ -476,12 +375,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 24,
     backgroundColor: colors.neutral[50],
-  },
-
-  saveButton: {
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
   },
 });

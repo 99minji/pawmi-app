@@ -9,6 +9,8 @@ type CreateCareScheduleInput = {
   name: string;
   dueDate: string;
   repeat?: CareRepeat;
+  notificationEnabled: boolean;
+  notificationTime: string;
 };
 
 export async function getCareSchedules(petId: string) {
@@ -53,6 +55,10 @@ export async function createCareSchedule(input: CreateCareScheduleInput) {
       repeat_unit: input.repeat?.unit ?? null,
 
       repeat_interval: input.repeat?.interval ?? null,
+
+      notification_enabled: input.notificationEnabled,
+
+      notification_time: input.notificationTime,
     })
     .select()
     .single();
@@ -68,6 +74,8 @@ type UpdateCareScheduleInput = {
   name: string;
   dueDate: string;
   repeat?: CareRepeat;
+  notificationEnabled: boolean;
+  notificationTime: string;
 };
 
 export async function updateCareScheduleById(
@@ -83,6 +91,10 @@ export async function updateCareScheduleById(
       repeat_unit: input.repeat?.unit ?? null,
 
       repeat_interval: input.repeat?.interval ?? null,
+
+      notification_enabled: input.notificationEnabled,
+
+      notification_time: input.notificationTime,
     })
     .eq('id', id)
     .select()

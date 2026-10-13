@@ -7,7 +7,7 @@ import { colors } from '@/constants/colors';
 import { formatKoreanDate } from '@/utils/date';
 
 type Props = {
-  label: string;
+  label?: string;
   value: Date;
   onChange: (date: Date) => void;
   minimumDate?: Date;
@@ -28,7 +28,7 @@ export function DateField({
 
   return (
     <View style={styles.field}>
-      <AppText variant="label">{label}</AppText>
+      {label && <AppText variant="label">{label}</AppText>}
 
       <Pressable style={styles.button} onPress={() => setShowPicker(true)}>
         <AppText variant="body1">{formatKoreanDate(value)}</AppText>

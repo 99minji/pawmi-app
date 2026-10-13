@@ -1,48 +1,105 @@
 import type { CareRepeat, CareScheduleType } from '@/types/care';
+import { parseDateString, toDateString } from './date';
+
+function addMonthsSafe(source: Date, months: number) {
+  const year = source.getFullYear();
+
+  const month = source.getMonth();
+
+  const day = source.getDate();
+
+  const targetFirstDay = new Date(year, month + months, 1);
+
+  const targetYear = targetFirstDay.getFullYear();
+
+  const targetMonth = targetFirstDay.getMonth();
+
+  const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+
+  const result = new Date(targetYear, targetMonth, Math.min(day, lastDay));
+
+  return toDateString(result);
+}
+
+function addYearsSafe(source: Date, years: number) {
+  const targetYear = source.getFullYear() + years;
+
+  const month = source.getMonth();
+
+  const day = source.getDate();
+
+  const lastDay = new Date(targetYear, month + 1, 0).getDate();
+
+  const result = new Date(targetYear, month, Math.min(day, lastDay));
+
+  return toDateString(result);
+}
 
 export function addRepeatToDate(dateString: string, repeat: CareRepeat) {
-  const [year, month, day] = dateString.split('-').map(Number);
-
-  const date = new Date(year, month - 1, day);
+  const date = parseDateString(dateString);
 
   switch (repeat.unit) {
-    case 'DAY':
+    case 'DAY': {
       date.setDate(date.getDate() + repeat.interval);
-      break;
 
-    case 'WEEK':
+      return toDateString(date);
+    }
+
+    case 'WEEK': {
       date.setDate(date.getDate() + repeat.interval * 7);
-      break;
+
+      return toDateString(date);
+    }
 
     case 'MONTH':
-      date.setMonth(date.getMonth() + repeat.interval);
-      break;
+      return addMonthsSafe(date, repeat.interval);
 
     case 'YEAR':
-      date.setFullYear(date.getFullYear() + repeat.interval);
-      break;
+      return addYearsSafe(date, repeat.interval);
   }
-
-  const nextYear = date.getFullYear();
-
-  const nextMonth = String(date.getMonth() + 1).padStart(2, '0');
-
-  const nextDay = String(date.getDate()).padStart(2, '0');
-
-  return `${nextYear}-${nextMonth}-${nextDay}`;
 }
 
 export type RepeatPreset =
-  'NONE' | 'MONTHLY' | 'SIX_MONTHS' | 'YEARLY' | 'CUSTOM';
+  | 'NONE'
+  | 'DAILY'
+  | 'WEEKLY'
+  | 'MONTHLY'
+  | 'SIX_MONTHS'
+  | 'YEARLY'
+  | 'CUSTOM';
 
-export const REPEAT_OPTIONS: { label: string; value: RepeatPreset }[] = [
-  { label: '반복 없음', value: 'NONE' },
-  { label: '매월', value: 'MONTHLY' },
-  { label: '6개월마다', value: 'SIX_MONTHS' },
-  { label: '매년', value: 'YEARLY' },
-];
+const REPEAT_LABELS: Record<Exclude<RepeatPreset, 'CUSTOM'>, string> = {
+  NONE: '반복 없음',
+  DAILY: '매일',
+  WEEKLY: '매주',
+  MONTHLY: '매월',
+  SIX_MONTHS: '6개월마다',
+  YEARLY: '매년',
+};
+
+// 관리 종류마다 고를 수 있는 반복 주기
+const REPEAT_PRESETS_BY_TYPE: Record<
+  CareScheduleType,
+  Exclude<RepeatPreset, 'NONE' | 'CUSTOM'>[]
+> = {
+  HEARTWORM: ['MONTHLY'],
+  MEDICATION: ['DAILY', 'WEEKLY', 'MONTHLY'],
+  VACCINATION: ['YEARLY'],
+  CHECKUP: ['SIX_MONTHS', 'YEARLY'],
+};
+
+export function getRepeatOptions(
+  type: CareScheduleType,
+): { label: string; value: RepeatPreset }[] {
+  return (['NONE', ...REPEAT_PRESETS_BY_TYPE[type]] as const).map((value) => ({
+    label: REPEAT_LABELS[value],
+    value,
+  }));
+}
 
 const PRESET_REPEATS: Partial<Record<RepeatPreset, CareRepeat>> = {
+  DAILY: { unit: 'DAY', interval: 1 },
+  WEEKLY: { unit: 'WEEK', interval: 1 },
   MONTHLY: { unit: 'MONTH', interval: 1 },
   SIX_MONTHS: { unit: 'MONTH', interval: 6 },
   YEARLY: { unit: 'YEAR', interval: 1 },
