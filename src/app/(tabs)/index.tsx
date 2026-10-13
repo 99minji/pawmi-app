@@ -6,7 +6,7 @@ import {
   Plus,
   ShieldCheck,
 } from 'lucide-react-native';
-import { useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
@@ -18,6 +18,7 @@ import { completeCareScheduleById, createCareSchedule } from '@/services/care';
 import { createVaccinationRecord } from '@/services/health';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 import { usePetStore } from '@/stores/usePetStore';
 import type { CareSchedule, CareSuggestion } from '@/types/care';
 import { addRepeatToDate } from '@/utils/care';
@@ -48,6 +49,9 @@ const renderScheduleIcon = (type: CareSchedule['type']) => {
       return <Hospital size={20} color={colors.primary[700]} />;
   }
 };
+
+// 스크롤 후 카드 위에 남겨둘 여백
+const SCROLL_TOP_OFFSET = 24;
 
 const getScheduleTitle = (schedule: CareSchedule) => {
   switch (schedule.type) {
@@ -85,7 +89,22 @@ export default function TodayScreen() {
     (state) => state.addScheduleFromDb,
   );
 
+  const pendingScheduleId = useNotificationStore(
+    (state) => state.pendingScheduleId,
+  );
+
+  const clearPendingScheduleId = useNotificationStore(
+    (state) => state.clearPendingScheduleId,
+  );
+
   const quickRecordSheetRef = useRef<BottomSheet>(null);
+
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // 알림으로 진입했을 때 카드 위치를 찾기 위한 레이아웃 정보
+  const taskListYRef = useRef<number | null>(null);
+
+  const taskCardYRef = useRef<Record<string, number>>({});
 
   /**
    * 현재 반려동물의 건강 기록
@@ -130,6 +149,54 @@ export default function TodayScreen() {
       ),
     [schedules, pet?.id, todayDateString],
   );
+
+  /**
+   * 알림으로 진입한 일정 카드로 스크롤
+   *
+   * 목록과 카드의 레이아웃이 모두 잡힌 뒤에만 스크롤하고 대기 상태를 비운다.
+   */
+  const scrollToPendingSchedule = useCallback(() => {
+    if (!pendingScheduleId) {
+      return;
+    }
+
+    const taskListY = taskListYRef.current;
+
+    const taskCardY = taskCardYRef.current[pendingScheduleId];
+
+    if (taskListY === null || taskCardY === undefined) {
+      return;
+    }
+
+    scrollViewRef.current?.scrollTo({
+      y: Math.max(taskListY + taskCardY - SCROLL_TOP_OFFSET, 0),
+      animated: true,
+    });
+
+    clearPendingScheduleId();
+  }, [pendingScheduleId, clearPendingScheduleId]);
+
+  useEffect(() => {
+    if (!pendingScheduleId || !pet) {
+      return;
+    }
+
+    // 오늘 할 일에 없는 일정(완료됐거나 날짜가 지난 일정)이면 스크롤하지 않는다.
+    if (!todaySchedules.some((schedule) => schedule.id === pendingScheduleId)) {
+      clearPendingScheduleId();
+
+      return;
+    }
+
+    // 앱 실행 중 알림을 누른 경우 이미 레이아웃이 잡혀 있으므로 바로 스크롤한다.
+    scrollToPendingSchedule();
+  }, [
+    pendingScheduleId,
+    pet,
+    todaySchedules,
+    clearPendingScheduleId,
+    scrollToPendingSchedule,
+  ]);
 
   const careSuggestions = useMemo(() => {
     if (!pet) {
@@ -272,6 +339,7 @@ export default function TodayScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
+        ref={scrollViewRef}
         style={styles.container}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -330,9 +398,25 @@ export default function TodayScreen() {
         </AppText>
 
         {todaySchedules.length > 0 ? (
-          <View style={styles.taskList}>
+          <View
+            style={styles.taskList}
+            onLayout={(event) => {
+              taskListYRef.current = event.nativeEvent.layout.y;
+
+              scrollToPendingSchedule();
+            }}
+          >
             {todaySchedules.map((schedule) => (
-              <View key={schedule.id} style={styles.taskCard}>
+              <View
+                key={schedule.id}
+                style={styles.taskCard}
+                onLayout={(event) => {
+                  taskCardYRef.current[schedule.id] =
+                    event.nativeEvent.layout.y;
+
+                  scrollToPendingSchedule();
+                }}
+              >
                 <View style={styles.taskIcon}>
                   {renderScheduleIcon(schedule.type)}
                 </View>

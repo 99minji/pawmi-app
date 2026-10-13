@@ -1,3 +1,4 @@
+import { useCareNotificationObserver } from '@/hooks/useCareNotificationObserver';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -20,6 +21,8 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
+
+  useCareNotificationObserver();
 
   if (!fontsLoaded) {
     return null;
