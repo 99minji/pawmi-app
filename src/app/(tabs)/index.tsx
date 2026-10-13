@@ -6,7 +6,7 @@ import {
   Plus,
   ShieldCheck,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
@@ -109,6 +109,10 @@ export default function TodayScreen() {
 
   const taskCardYRef = useRef<Record<string, number>>({});
 
+  const [completingScheduleId, setCompletingScheduleId] = useState<
+    string | null
+  >(null);
+
   /**
    * 현재 반려동물의 건강 기록
    */
@@ -142,16 +146,24 @@ export default function TodayScreen() {
   /**
    * 오늘 해야 할 관리 일정
    */
-  const todaySchedules = useMemo(
-    () =>
-      schedules.filter(
+  const todaySchedules = useMemo(() => {
+    return schedules
+      .filter(
         (schedule) =>
           schedule.petId === pet?.id &&
-          schedule.dueDate === todayDateString &&
+          schedule.dueDate <= todayDateString &&
           !schedule.completedAt,
-      ),
-    [schedules, pet?.id, todayDateString],
-  );
+      )
+      .sort((a, b) => {
+        const aToday = a.dueDate === todayDateString;
+        const bToday = b.dueDate === todayDateString;
+
+        if (aToday && !bToday) return -1;
+        if (!aToday && bToday) return 1;
+
+        return b.dueDate.localeCompare(a.dueDate);
+      });
+  }, [schedules, pet?.id, todayDateString]);
 
   /**
    * 알림으로 진입한 일정 카드로 스크롤
@@ -225,9 +237,11 @@ export default function TodayScreen() {
    * 3. 반복 일정이면 다음 일정과 알림을 등록
    */
   const handleCompleteSchedule = async (schedule: CareSchedule) => {
-    if (!pet) {
+    if (!pet || completingScheduleId) {
       return;
     }
+
+    setCompletingScheduleId(schedule.id);
 
     try {
       // 1. 현재 일정을 DB에서 완료 처리
@@ -306,6 +320,8 @@ export default function TodayScreen() {
       console.log('COMPLETE CARE ERROR:', error);
 
       Alert.alert('완료 처리하지 못했어요', '잠시 후 다시 시도해주세요.');
+    } finally {
+      setCompletingScheduleId(null);
     }
   };
 
@@ -443,21 +459,40 @@ export default function TodayScreen() {
                     {getScheduleTitle(schedule)}
                   </AppText>
 
+                  {schedule.type === 'MEDICATION' && schedule.dosageText && (
+                    <AppText
+                      variant="body2"
+                      color="secondary"
+                      style={styles.taskDosage}
+                    >
+                      복용량 {schedule.dosageText}
+                    </AppText>
+                  )}
+
                   <AppText
                     variant="label"
-                    color="tertiary"
+                    color={
+                      schedule.dueDate < todayDateString ? 'error' : 'tertiary'
+                    }
                     style={styles.taskDescription}
                   >
-                    오늘 예정
+                    {schedule.dueDate < todayDateString
+                      ? '놓친 일정'
+                      : '오늘 예정'}
                   </AppText>
                 </View>
 
                 <Pressable
-                  style={styles.completeButton}
+                  style={[
+                    styles.completeButton,
+                    completingScheduleId === schedule.id &&
+                      styles.completeButtonDisabled,
+                  ]}
+                  disabled={completingScheduleId === schedule.id}
                   onPress={() => handleCompleteSchedule(schedule)}
                 >
                   <AppText variant="label" color="inverse">
-                    완료
+                    {completingScheduleId === schedule.id ? '처리 중' : '완료'}
                   </AppText>
                 </Pressable>
               </View>
@@ -668,6 +703,10 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
 
+  taskDosage: {
+    marginTop: 4,
+  },
+
   taskDescription: {
     marginTop: 4,
   },
@@ -684,6 +723,10 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 10,
     backgroundColor: colors.primary[600],
+  },
+
+  completeButtonDisabled: {
+    opacity: 0.5,
   },
 
   careSuggestionCard: {
