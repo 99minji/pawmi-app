@@ -154,7 +154,7 @@ export default function VaccinationRecordScreen() {
       name,
       dueDate,
       repeat: getRepeat(),
-      notificationEnabled: true,
+      notificationEnabled: false,
       notificationTime: DEFAULT_NOTIFICATION_TIME,
     });
 

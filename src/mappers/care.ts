@@ -1,5 +1,4 @@
 import type { CareSchedule } from '@/types/care';
-import { DEFAULT_NOTIFICATION_TIME } from '@/utils/notification';
 
 export function mapCareScheduleFromDb(row: any): CareSchedule {
   return {
@@ -19,7 +18,7 @@ export function mapCareScheduleFromDb(row: any): CareSchedule {
 
     notificationEnabled: row.notification_enabled ?? false,
 
-    notificationTime: row.notification_time ?? DEFAULT_NOTIFICATION_TIME,
+    notificationTime: row.notification_time ?? undefined,
 
     completedAt: row.completed_at ?? undefined,
 

@@ -1,5 +1,4 @@
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
-import { requestNotificationPermission } from '@/utils/notification';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -21,10 +20,6 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
-
-  useEffect(() => {
-    requestNotificationPermission();
-  }, []);
 
   if (!fontsLoaded) {
     return null;
