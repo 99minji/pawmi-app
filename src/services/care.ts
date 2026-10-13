@@ -9,6 +9,9 @@ type CreateCareScheduleInput = {
   name: string;
   dueDate: string;
   repeat?: CareRepeat;
+
+  dosageText?: string;
+
   notificationEnabled: boolean;
   notificationTime: string;
 };
@@ -56,6 +59,8 @@ export async function createCareSchedule(input: CreateCareScheduleInput) {
 
       repeat_interval: input.repeat?.interval ?? null,
 
+      dosage_text: input.dosageText?.trim() || null,
+
       notification_enabled: input.notificationEnabled,
 
       notification_time: input.notificationTime,
@@ -74,6 +79,9 @@ type UpdateCareScheduleInput = {
   name: string;
   dueDate: string;
   repeat?: CareRepeat;
+
+  dosageText?: string;
+
   notificationEnabled: boolean;
   notificationTime: string;
 };
@@ -91,6 +99,8 @@ export async function updateCareScheduleById(
       repeat_unit: input.repeat?.unit ?? null,
 
       repeat_interval: input.repeat?.interval ?? null,
+
+      dosage_text: input.dosageText?.trim() || null,
 
       notification_enabled: input.notificationEnabled,
 

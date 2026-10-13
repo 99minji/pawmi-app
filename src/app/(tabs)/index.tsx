@@ -15,7 +15,10 @@ import { QuickRecordSheet } from '@/components/record/QuickRecordSheet';
 import { colors } from '@/constants/colors';
 import { petAvatars } from '@/constants/petAvatars';
 import { completeCareScheduleById, createCareSchedule } from '@/services/care';
-import { createVaccinationRecord } from '@/services/health';
+import {
+  createMedicationRecord,
+  createVaccinationRecord,
+} from '@/services/health';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
@@ -248,6 +251,18 @@ export default function TodayScreen() {
         addRecord(record);
       }
 
+      if (schedule.type === 'MEDICATION') {
+        const record = await createMedicationRecord(
+          pet.id,
+          schedule.name,
+          schedule.dosageText,
+          undefined,
+          dateToOccurredAt(new Date()),
+        );
+
+        addRecord(record);
+      }
+
       // 4. 반복 일정이 없다면 종료
       if (!schedule.repeat) {
         return;
@@ -265,6 +280,8 @@ export default function TodayScreen() {
         dueDate: nextDueDate,
 
         repeat: schedule.repeat,
+
+        dosageText: schedule.dosageText,
 
         notificationEnabled: schedule.notificationEnabled,
 

@@ -80,6 +80,8 @@ export default function CareCreateScreen() {
 
   const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>('NONE');
 
+  const [dosageText, setDosageText] = useState('');
+
   const [notificationEnabled, setNotificationEnabled] = useState(false);
 
   const [notificationTime, setNotificationTime] = useState(
@@ -105,7 +107,11 @@ export default function CareCreateScreen() {
         type,
         name: name.trim(),
         dueDate: toDateString(dueDate),
+
         repeat: getRepeatFromPreset(repeatPreset),
+
+        dosageText:
+          type === 'MEDICATION' ? dosageText.trim() || undefined : undefined,
 
         notificationEnabled,
         notificationTime,
@@ -164,6 +170,10 @@ export default function CareCreateScreen() {
                   onPress={() => {
                     setType(item.value);
                     setRepeatPreset('NONE');
+
+                    if (item.value !== 'MEDICATION') {
+                      setDosageText('');
+                    }
                   }}
                 >
                   {renderTypeIcon(item.value)}
@@ -191,6 +201,20 @@ export default function CareCreateScreen() {
             style={styles.input}
           />
         </View>
+
+        {type === 'MEDICATION' && (
+          <View style={styles.section}>
+            <AppText variant="heading2">복용량</AppText>
+
+            <TextInput
+              value={dosageText}
+              onChangeText={setDosageText}
+              placeholder="예: 1정, 2ml"
+              placeholderTextColor={colors.neutral[400]}
+              style={styles.input}
+            />
+          </View>
+        )}
 
         <View style={styles.section}>
           <AppText variant="heading2">예정일</AppText>

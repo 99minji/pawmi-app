@@ -16,6 +16,8 @@ export function mapCareScheduleFromDb(row: any): CareSchedule {
           }
         : undefined,
 
+    dosageText: row.dosage_text ?? undefined,
+
     notificationEnabled: row.notification_enabled ?? false,
 
     notificationTime: row.notification_time ?? undefined,

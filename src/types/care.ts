@@ -14,13 +14,14 @@ export type CareRepeat = {
 export type CareSchedule = {
   id: string;
   petId: string;
-
   type: CareScheduleType;
   name: string;
 
   dueDate: string;
-
   repeat?: CareRepeat;
+
+  // MEDICATION일 때 사용
+  dosageText?: string;
 
   notificationEnabled: boolean;
   notificationTime?: string;

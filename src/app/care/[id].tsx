@@ -1,7 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { CalendarDays, Repeat2, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { NotificationSetting } from '@/components/care/NotificationSetting';
 import { RepeatSelector } from '@/components/care/RepeatSelector';
@@ -99,6 +106,8 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
     hasCustomRepeat ? 'CUSTOM' : savedPreset,
   );
 
+  const [dosageText, setDosageText] = useState(schedule.dosageText ?? '');
+
   const [notificationEnabled, setNotificationEnabled] = useState(
     schedule.notificationEnabled,
   );
@@ -126,6 +135,11 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
         name: schedule.name,
         dueDate: toDateString(dueDate),
         repeat,
+
+        dosageText:
+          schedule.type === 'MEDICATION'
+            ? dosageText.trim() || undefined
+            : undefined,
 
         notificationEnabled,
 
@@ -238,6 +252,21 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
           />
         </View>
 
+        {/* 복용량 */}
+        {schedule.type === 'MEDICATION' && (
+          <View style={styles.section}>
+            <AppText variant="heading2">복용량</AppText>
+
+            <TextInput
+              value={dosageText}
+              onChangeText={setDosageText}
+              placeholder="예: 1정, 2ml"
+              placeholderTextColor={colors.neutral[400]}
+              style={styles.input}
+            />
+          </View>
+        )}
+
         {/* 반복 */}
         <View style={styles.section}>
           <AppText variant="heading2">반복</AppText>
@@ -348,6 +377,19 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 28,
     gap: 12,
+  },
+
+  input: {
+    minHeight: 56,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    backgroundColor: colors.neutral[0],
+    fontFamily: 'Pretendard-Regular',
+    fontSize: 16,
+    color: colors.neutral[900],
   },
 
   sectionHint: {
