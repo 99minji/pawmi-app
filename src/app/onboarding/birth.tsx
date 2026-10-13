@@ -1,4 +1,4 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { router } from 'expo-router';
 import { Minus, Plus } from 'lucide-react-native';
 import { useState } from 'react';
@@ -29,13 +29,10 @@ export default function BirthScreen() {
 
   const selectedDate = birthDate ? parseDate(birthDate) : new Date();
 
-  const handleDateChange = (_event: unknown, date?: Date) => {
+  const handleDateChange = (_event: unknown, date: Date) => {
+    // iOS는 화면 안에 스피너로 보여주므로 선택 후에도 닫지 않는다.
     if (Platform.OS === 'android') {
       setShowPicker(false);
-    }
-
-    if (!date) {
-      return;
     }
 
     setBirthDate(formatDateValue(date));
@@ -108,10 +105,11 @@ export default function BirthScreen() {
               <DateTimePicker
                 value={selectedDate}
                 mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                presentation="dialog"
                 maximumDate={new Date()}
-                onChange={handleDateChange}
-                locale="ko-KR"
+                onValueChange={handleDateChange}
+                onDismiss={() => setShowPicker(false)}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               />
             </View>
           )}

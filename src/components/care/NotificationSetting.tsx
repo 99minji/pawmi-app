@@ -1,7 +1,7 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { Bell, Clock } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Platform, Switch, View } from 'react-native';
+import { Alert, Switch, View } from 'react-native';
 
 import { SettingCard } from '@/components/care/SettingCard';
 import { AppText } from '@/components/common/AppText';
@@ -86,17 +86,14 @@ export function NotificationSetting({
         <DateTimePicker
           value={parseTimeString(time)}
           mode="time"
-          locale="ko-KR"
-          is24Hour={false}
-          onChange={(event, selectedDate) => {
-            if (Platform.OS === 'android') {
-              setShowTimePicker(false);
-            }
-
-            // Android는 취소(dismissed) 시에도 기존 value로 onChange를 호출한다.
-            if (event.type === 'set' && selectedDate) {
-              onTimeChange(toTimeString(selectedDate));
-            }
+          presentation="dialog"
+          is24Hour
+          onValueChange={(_, selectedDate) => {
+            setShowTimePicker(false);
+            onTimeChange(toTimeString(selectedDate));
+          }}
+          onDismiss={() => {
+            setShowTimePicker(false);
           }}
         />
       )}

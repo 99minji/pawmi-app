@@ -1,4 +1,4 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -234,15 +234,14 @@ export default function VaccinationRecordScreen() {
               <DateTimePicker
                 value={nextDueDate ?? new Date()}
                 mode="date"
-                locale="ko-KR"
+                presentation="dialog"
                 minimumDate={new Date()}
-                onChange={(event, selectedDate) => {
+                onValueChange={(_, selectedDate) => {
                   setShowDatePicker(false);
-
-                  // Android는 취소(dismissed) 시에도 기존 value로 onChange를 호출한다.
-                  if (event.type === 'set' && selectedDate) {
-                    setNextDueDate(selectedDate);
-                  }
+                  setNextDueDate(selectedDate);
+                }}
+                onDismiss={() => {
+                  setShowDatePicker(false);
                 }}
               />
             )}

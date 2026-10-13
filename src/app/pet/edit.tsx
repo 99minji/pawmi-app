@@ -1,4 +1,4 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -156,14 +156,14 @@ function PetEditForm({ pet }: { pet: Pet }) {
               <DateTimePicker
                 value={birthDate ?? new Date()}
                 mode="date"
-                locale="ko-KR"
+                presentation="dialog"
                 maximumDate={new Date()}
-                onChange={(_event, selectedDate) => {
+                onValueChange={(_, selectedDate) => {
                   setShowDatePicker(false);
-
-                  if (selectedDate) {
-                    setBirthDate(selectedDate);
-                  }
+                  setBirthDate(selectedDate);
+                }}
+                onDismiss={() => {
+                  setShowDatePicker(false);
                 }}
               />
             )}
