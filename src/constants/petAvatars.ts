@@ -1,6 +1,15 @@
 import type { AvatarBreed } from '@/types/pet';
 
 export const petAvatars = {
+  MALTESE: {
+    idle: require('../../assets/avatars/dog/maltese/idle.png'),
+    happy: require('../../assets/avatars/dog/maltese/happy.png'),
+    sick: require('../../assets/avatars/dog/maltese/sick.png'),
+    care: require('../../assets/avatars/dog/maltese/care.png'),
+    rest: require('../../assets/avatars/dog/maltese/rest.png'),
+    idleBody: require('../../assets/avatars/dog/maltese/idle-body.png'),
+    idleTail: require('../../assets/avatars/dog/maltese/idle-tail.png'),
+  },
   POMERANIAN: {
     idle: require('../../assets/avatars/dog/pomeranian/idle.png'),
     happy: require('../../assets/avatars/dog/pomeranian/happy.png'),
