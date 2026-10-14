@@ -12,7 +12,11 @@ import { WeightSummaryCard } from '@/components/health/WeightSummaryCard';
 import { colors } from '@/constants/colors';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
-import { isWeightRecord, sortByLatest } from '@/utils/health';
+import {
+  HEALTH_RECORD_TYPE_LABELS,
+  isWeightRecord,
+  sortByLatest,
+} from '@/utils/health';
 
 export default function HealthScreen() {
   const pet = usePetStore((state) => state.pet);
@@ -78,11 +82,15 @@ export default function HealthScreen() {
           <HeartPulse size={28} color={colors.primary[600]} />
 
           <AppText variant="body1" style={styles.emptyTitle}>
-            아직 기록이 없어요
+            {filter === 'ALL'
+              ? '아직 기록이 없어요'
+              : `${HEALTH_RECORD_TYPE_LABELS[filter]} 기록이 없어요`}
           </AppText>
 
           <AppText variant="body2" color="secondary">
-            체중이나 증상, 투약 기록을 남기면 여기에 모아볼 수 있어요.
+            {filter === 'ALL'
+              ? '체중이나 증상, 투약 기록을 남기면 여기에 모아볼 수 있어요.'
+              : '다른 종류를 선택하거나 새 기록을 남겨보세요.'}
           </AppText>
         </View>
       ) : (

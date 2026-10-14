@@ -1,6 +1,12 @@
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 
@@ -15,8 +21,13 @@ import { getMyPets } from '@/services/pet';
 
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
+import { supabase } from '@/lib/supabase';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 import { usePetStore } from '@/stores/usePetStore';
-import { reconcileCareNotifications } from '@/utils/notification';
+import {
+  cancelAllCareNotifications,
+  reconcileCareNotifications,
+} from '@/utils/notification';
 
 export default function IndexScreen() {
   const { session, loading: authLoading } = useAuth();
@@ -110,6 +121,24 @@ export default function IndexScreen() {
     retryCount,
   ]);
 
+  /**
+   * 오류 화면에서 로그아웃
+   *
+   * 세션은 남아 있는데 계속 불러오지 못하는 경우(계정 삭제 등) 빠져나올 수 있게 한다.
+   * 로그아웃이 되면 위 effect가 store를 비우고 로그인 화면으로 보낸다.
+   */
+  const handleLogout = async () => {
+    await cancelAllCareNotifications();
+
+    useNotificationStore.getState().clearPendingScheduleId();
+
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      Alert.alert('로그아웃하지 못했어요', '잠시 후 다시 시도해주세요.');
+    }
+  };
+
   if (authLoading || (session && checkingData)) {
     return (
       <View style={styles.center}>
@@ -141,6 +170,12 @@ export default function IndexScreen() {
             onPress={() => setRetryCount((count) => count + 1)}
           />
         </View>
+
+        <Pressable style={styles.logoutButton} onPress={handleLogout}>
+          <AppText variant="body2" color="secondary">
+            로그아웃
+          </AppText>
+        </Pressable>
       </View>
     );
   }
@@ -168,5 +203,11 @@ const styles = StyleSheet.create({
   retryButton: {
     alignSelf: 'stretch',
     marginTop: 24,
+  },
+
+  logoutButton: {
+    marginTop: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
 });

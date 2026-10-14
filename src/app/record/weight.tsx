@@ -74,7 +74,19 @@ export default function WeightRecordScreen() {
       const record = await createWeightRecord(pet.id, weightKg, occurredAt);
 
       addRecord(record);
+    } catch (error) {
+      console.log('CREATE WEIGHT ERROR:', error);
 
+      Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
+
+      setSaving(false);
+
+      return;
+    }
+
+    // 체중 기록은 이미 저장됐으므로, 반려동물 체중 갱신이 실패해도
+    // 재시도로 기록이 중복되지 않게 화면은 닫는다.
+    try {
       if (isLatest) {
         const updatedPet = await updatePetById(pet.id, {
           weightKg,
@@ -82,14 +94,12 @@ export default function WeightRecordScreen() {
 
         setPet(updatedPet);
       }
-
-      router.back();
     } catch (error) {
-      console.log('CREATE WEIGHT ERROR:', error);
-
-      Alert.alert('저장하지 못했어요', '잠시 후 다시 시도해주세요.');
+      console.log('UPDATE PET WEIGHT ERROR:', error);
     } finally {
       setSaving(false);
+
+      router.back();
     }
   };
 
