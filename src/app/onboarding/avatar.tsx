@@ -5,7 +5,11 @@ import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { colors } from '@/constants/colors';
-import { AVATAR_BREED_LABELS, petAvatars } from '@/constants/petAvatars';
+import {
+  AVATAR_BREED_LABELS,
+  AVATAR_BREED_OPTIONS,
+  petAvatars,
+} from '@/constants/petAvatars';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { usePetStore } from '@/stores/usePetStore';
 
@@ -74,26 +78,27 @@ export default function AvatarScreen() {
       }
     >
       <View style={styles.grid}>
-        <Pressable
-          onPress={() => setAvatarBreed('POMERANIAN')}
-          style={[
-            styles.avatarCard,
-            avatarBreed === 'POMERANIAN' && styles.selected,
-          ]}
-        >
-          <Image
-            source={petAvatars.POMERANIAN.idle}
-            style={styles.avatar}
-            resizeMode="contain"
-          />
+        {AVATAR_BREED_OPTIONS.map((breed) => {
+          const selected = avatarBreed === breed;
 
-          <AppText
-            variant="body2"
-            color={avatarBreed === 'POMERANIAN' ? 'brand' : 'primary'}
-          >
-            {AVATAR_BREED_LABELS.POMERANIAN}
-          </AppText>
-        </Pressable>
+          return (
+            <Pressable
+              key={breed}
+              onPress={() => setAvatarBreed(breed)}
+              style={[styles.avatarCard, selected && styles.selected]}
+            >
+              <Image
+                source={petAvatars[breed].idle}
+                style={styles.avatar}
+                resizeMode="contain"
+              />
+
+              <AppText variant="body2" color={selected ? 'brand' : 'primary'}>
+                {AVATAR_BREED_LABELS[breed]}
+              </AppText>
+            </Pressable>
+          );
+        })}
       </View>
     </OnboardingLayout>
   );

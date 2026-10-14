@@ -9,7 +9,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-type PetAvatarState = 'idle' | 'happy' | 'sick' | 'rainy' | 'care' | 'rest';
+type PetAvatarState = 'idle' | 'happy' | 'sick' | 'care' | 'rest';
 
 type Props = {
   source: ImageSourcePropType;
@@ -85,21 +85,6 @@ export function PetAvatar({ source, state = 'idle', size = 220 }: Props) {
           ),
           -1,
           false,
-        );
-        break;
-
-      case 'rainy':
-        rotate.value = withRepeat(
-          withSequence(
-            withTiming(-1.5, {
-              duration: 1200,
-            }),
-            withTiming(1.5, {
-              duration: 1200,
-            }),
-          ),
-          -1,
-          true,
         );
         break;
 

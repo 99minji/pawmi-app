@@ -13,7 +13,8 @@ import { AppText } from '@/components/common/AppText';
 import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { QuickRecordSheet } from '@/components/record/QuickRecordSheet';
 import { colors } from '@/constants/colors';
-import { petAvatars } from '@/constants/petAvatars';
+import { getPetAvatar, restSleepSource } from '@/constants/petAvatars';
+import { useIsNightTime } from '@/hooks/useIsNightTime';
 import { completeCareScheduleById, createCareSchedule } from '@/services/care';
 import {
   createMedicationRecord,
@@ -26,8 +27,8 @@ import { usePetStore } from '@/stores/usePetStore';
 import type { CareSchedule, CareSuggestion } from '@/types/care';
 import { addRepeatToDate } from '@/utils/care';
 import { getCareSuggestions } from '@/utils/careEngine';
-import { dateToOccurredAt } from '@/utils/date';
-import { hasRecentRecord } from '@/utils/healthInsight';
+import { dateToOccurredAt, toDateString } from '@/utils/date';
+import { getCareAvatarEndTime } from '@/utils/healthInsight';
 import {
   cancelCareNotification,
   DEFAULT_NOTIFICATION_TIME,
@@ -55,6 +56,14 @@ const renderScheduleIcon = (type: CareSchedule['type']) => {
 
 // 스크롤 후 카드 위에 남겨둘 여백
 const SCROLL_TOP_OFFSET = 24;
+
+// 아바타를 탭했을 때 happy 상태를 보여주는 시간
+const TAP_HAPPY_DURATION = 3000;
+
+type AvatarState = 'idle' | 'happy' | 'care' | 'rest' | 'sick';
+
+// 개발 중 아바타 상태 확인용. 확인이 끝나면 null로 되돌린다. (프로덕션에서는 항상 무시)
+const DEBUG_AVATAR_STATE: AvatarState | null = null;
 
 const getScheduleTitle = (schedule: CareSchedule) => {
   switch (schedule.type) {
@@ -122,14 +131,34 @@ export default function TodayScreen() {
   );
 
   /**
-   * 최근 24시간 동안 건강 기록이 있는지
-   *
-   * 있으면 아바타를 care 상태로 보여준다.
+   * 건강 기록을 남긴 뒤 1분 동안 아바타를 care 상태로 보여준다.
    */
-  const hasRecentCareRecord = useMemo(
-    () => hasRecentRecord(records),
+  const careAvatarEndTime = useMemo(
+    () => getCareAvatarEndTime(records),
     [records],
   );
+
+  // 종료 시각이 되면 다시 그려서 idle 상태로 되돌린다.
+  const [expiredCareAvatarEndTime, setExpiredCareAvatarEndTime] = useState<
+    number | null
+  >(null);
+
+  useEffect(() => {
+    if (careAvatarEndTime === null) {
+      return;
+    }
+
+    const timer = setTimeout(
+      () => setExpiredCareAvatarEndTime(careAvatarEndTime),
+      careAvatarEndTime - Date.now(),
+    );
+
+    return () => clearTimeout(timer);
+  }, [careAvatarEndTime]);
+
+  const isCareAvatar =
+    careAvatarEndTime !== null &&
+    careAvatarEndTime !== expiredCareAvatarEndTime;
 
   const todayDateString = useMemo(() => {
     const today = new Date();
@@ -164,6 +193,51 @@ export default function TodayScreen() {
         return b.dueDate.localeCompare(a.dueDate);
       });
   }, [schedules, pet?.id, todayDateString]);
+
+  /**
+   * 오늘 할 일을 모두 끝냈는지
+   *
+   * 오늘 완료한 일정이 있고 남은 일정이 없으면 아바타를 happy 상태로 보여준다.
+   */
+  const hasCompletedAllToday = useMemo(
+    () =>
+      todaySchedules.length === 0 &&
+      schedules.some(
+        (schedule) =>
+          schedule.petId === pet?.id &&
+          !!schedule.completedAt &&
+          toDateString(new Date(schedule.completedAt)) === todayDateString,
+      ),
+    [todaySchedules, schedules, pet?.id, todayDateString],
+  );
+
+  const isNightTime = useIsNightTime();
+
+  // 아바타를 탭하면 잠깐 happy 상태로 반응한다.
+  const [isTapHappy, setIsTapHappy] = useState(false);
+
+  const tapHappyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (tapHappyTimerRef.current) {
+        clearTimeout(tapHappyTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleAvatarPress = () => {
+    if (tapHappyTimerRef.current) {
+      clearTimeout(tapHappyTimerRef.current);
+    }
+
+    setIsTapHappy(true);
+
+    tapHappyTimerRef.current = setTimeout(
+      () => setIsTapHappy(false),
+      TAP_HAPPY_DURATION,
+    );
+  };
 
   /**
    * 알림으로 진입한 일정 카드로 스크롤
@@ -338,13 +412,36 @@ export default function TodayScreen() {
   /**
    * 아바타 상태
    */
-  const avatarSource = hasRecentCareRecord
-    ? petAvatars.POMERANIAN.care
-    : petAvatars.POMERANIAN.idleBody;
+  const avatar = getPetAvatar(pet.avatarBreed);
 
-  const tailSource = hasRecentCareRecord
-    ? undefined
-    : petAvatars.POMERANIAN.idleTail;
+  // 우선순위: 탭 반응 > 건강 기록 직후(care) > 밤 시간(rest) > 오늘 할 일 완료(happy) > idle
+  const avatarState: AvatarState =
+    __DEV__ && DEBUG_AVATAR_STATE
+      ? DEBUG_AVATAR_STATE
+      : isTapHappy
+        ? 'happy'
+        : isCareAvatar
+          ? 'care'
+          : isNightTime
+            ? 'rest'
+            : hasCompletedAllToday
+              ? 'happy'
+              : 'idle';
+
+  const avatarSource = {
+    happy: avatar.happy,
+    care: avatar.care,
+    rest: avatar.rest,
+    sick: avatar.sick,
+    idle: avatar.idleBody,
+  }[avatarState];
+
+  const tailSource = avatarState === 'idle' ? avatar.idleTail : undefined;
+
+  const sleepSource = avatarState === 'rest' ? restSleepSource : undefined;
+
+  // 상태가 바뀌는 순간 한 번 통통 튀는 반응
+  const avatarReaction = isTapHappy ? 'happy' : isCareAvatar ? 'care' : 'idle';
 
   const primarySuggestion = careSuggestions[0];
 
@@ -395,11 +492,15 @@ export default function TodayScreen() {
           <View style={styles.avatarArea}>
             <View style={styles.avatarGlow} />
 
-            <AnimatedPetAvatar
-              size={220}
-              source={avatarSource}
-              tailSource={tailSource}
-            />
+            <Pressable onPress={handleAvatarPress}>
+              <AnimatedPetAvatar
+                size={220}
+                source={avatarSource}
+                tailSource={tailSource}
+                sleepSource={sleepSource}
+                reaction={avatarReaction}
+              />
+            </Pressable>
           </View>
 
           <View style={styles.petSummary}>

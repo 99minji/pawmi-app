@@ -3,6 +3,7 @@ export type Gender = 'MALE' | 'FEMALE';
 
 export type AvatarBreed =
   | 'POMERANIAN'
+  | 'SCHNAUZER'
   | 'MALTESE'
   | 'POODLE'
   | 'BICHON'

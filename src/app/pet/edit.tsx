@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,10 +15,10 @@ import {
 
 import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
-import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { colors } from '@/constants/colors';
 import {
   AVATAR_BREED_LABELS,
+  AVATAR_BREED_OPTIONS,
   getPetAvatar,
   petAvatars,
 } from '@/constants/petAvatars';
@@ -111,10 +112,10 @@ function PetEditForm({ pet }: { pet: Pet }) {
         </AppText>
 
         <View style={styles.avatarSection}>
-          <AnimatedPetAvatar
-            size={190}
-            source={currentAvatar.idleBody}
-            tailSource={currentAvatar.idleTail}
+          <Image
+            source={currentAvatar.idle}
+            style={styles.currentAvatar}
+            resizeMode="contain"
           />
 
           <AppText variant="body2" color="secondary">
@@ -206,23 +207,28 @@ function PetEditForm({ pet }: { pet: Pet }) {
           <View style={styles.field}>
             <AppText variant="label">품종</AppText>
 
-            <Pressable
-              style={[
-                styles.avatarOption,
-                avatarBreed === 'POMERANIAN' && styles.avatarOptionSelected,
-              ]}
-              onPress={() => setAvatarBreed('POMERANIAN')}
-            >
-              <AnimatedPetAvatar
-                size={100}
-                source={petAvatars.POMERANIAN.idleBody}
-                tailSource={petAvatars.POMERANIAN.idleTail}
-              />
+            <View style={styles.avatarOptionRow}>
+              {AVATAR_BREED_OPTIONS.map((breed) => (
+                <Pressable
+                  key={breed}
+                  style={[
+                    styles.avatarOption,
+                    avatarBreed === breed && styles.avatarOptionSelected,
+                  ]}
+                  onPress={() => setAvatarBreed(breed)}
+                >
+                  <Image
+                    source={petAvatars[breed].idle}
+                    style={styles.avatarOptionImage}
+                    resizeMode="contain"
+                  />
 
-              <AppText variant="body2">
-                {AVATAR_BREED_LABELS.POMERANIAN}
-              </AppText>
-            </Pressable>
+                  <AppText variant="body2">
+                    {AVATAR_BREED_LABELS[breed]}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -260,6 +266,11 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     borderRadius: 24,
     backgroundColor: colors.primary[50],
+  },
+
+  currentAvatar: {
+    width: 190,
+    height: 190,
   },
 
   form: {
@@ -306,6 +317,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[50],
   },
 
+  avatarOptionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+
   avatarOption: {
     width: 140,
     minHeight: 150,
@@ -315,6 +332,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.neutral[200],
     backgroundColor: colors.neutral[0],
+  },
+
+  avatarOptionImage: {
+    width: 100,
+    height: 100,
   },
 
   avatarOptionSelected: {

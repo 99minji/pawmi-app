@@ -1,10 +1,16 @@
 import { router } from 'expo-router';
 import { CalendarDays, ChevronRight, Pencil, Plus } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
-import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { colors } from '@/constants/colors';
 import { getPetAvatar } from '@/constants/petAvatars';
 import { supabase } from '@/lib/supabase';
@@ -50,10 +56,6 @@ export default function PetScreen() {
 
   const avatar = getPetAvatar(pet.avatarBreed);
 
-  const avatarSource = avatar.idleBody;
-
-  const tailSource = avatar.idleTail;
-
   const openCareCreate = () => {
     router.push('/care/create');
   };
@@ -90,10 +92,10 @@ export default function PetScreen() {
       <View style={styles.hero}>
         <View style={styles.avatarGlow} />
 
-        <AnimatedPetAvatar
-          size={210}
-          source={avatarSource}
-          tailSource={tailSource}
+        <Image
+          source={avatar.idle}
+          style={styles.avatar}
+          resizeMode="contain"
         />
 
         <AppText variant="heading1" style={styles.petName}>
@@ -305,6 +307,11 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 24,
     marginBottom: 32,
+  },
+
+  avatar: {
+    width: 210,
+    height: 210,
   },
 
   avatarGlow: {

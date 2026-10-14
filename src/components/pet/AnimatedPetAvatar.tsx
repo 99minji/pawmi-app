@@ -15,6 +15,8 @@ type Props = {
   size?: number;
   source: ImageSourcePropType;
   tailSource?: ImageSourcePropType;
+  // 아바타 위에 떠오르는 Zzz 파츠 (rest 상태)
+  sleepSource?: ImageSourcePropType;
   reaction?: AvatarReaction;
 };
 
@@ -22,6 +24,7 @@ export function AnimatedPetAvatar({
   size = 220,
   source,
   tailSource,
+  sleepSource,
   reaction = 'idle',
 }: Props) {
   const scaleX = useSharedValue(1);
@@ -29,10 +32,11 @@ export function AnimatedPetAvatar({
   const translateY = useSharedValue(0);
   const tailRotate = useSharedValue(0);
   const bounceY = useSharedValue(0);
+  const sleepProgress = useSharedValue(0);
 
-  // care 반응
+  // care / happy 반응
   useEffect(() => {
-    if (reaction !== 'care') {
+    if (reaction === 'idle') {
       bounceY.value = 0;
       return;
     }
@@ -119,6 +123,18 @@ export function AnimatedPetAvatar({
     );
   }, [scaleX, scaleY, translateY, tailRotate]);
 
+  // Zzz 파츠가 천천히 떠오르며 흐려졌다가 다시 시작
+  useEffect(() => {
+    sleepProgress.value = withRepeat(
+      withTiming(1, {
+        duration: 2400,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      false,
+    );
+  }, [sleepProgress]);
+
   const breathingStyle = useAnimatedStyle(() => ({
     transform: [
       {
@@ -137,6 +153,21 @@ export function AnimatedPetAvatar({
     transform: [
       {
         rotate: `${tailRotate.value}deg`,
+      },
+    ],
+  }));
+
+  const sleepStyle = useAnimatedStyle(() => ({
+    opacity:
+      sleepProgress.value < 0.2
+        ? sleepProgress.value / 0.2
+        : 1 - (sleepProgress.value - 0.2) / 0.8,
+    transform: [
+      {
+        translateY: -sleepProgress.value * 14,
+      },
+      {
+        scale: 0.85 + sleepProgress.value * 0.2,
       },
     ],
   }));
@@ -164,6 +195,14 @@ export function AnimatedPetAvatar({
         resizeMode="contain"
         style={[styles.body, breathingStyle]}
       />
+
+      {sleepSource && (
+        <Animated.Image
+          source={sleepSource}
+          resizeMode="contain"
+          style={[styles.sleep, sleepStyle]}
+        />
+      )}
     </View>
   );
 }
@@ -189,5 +228,14 @@ const styles = StyleSheet.create({
     right: '2%',
     top: '34%',
     zIndex: 1,
+  },
+
+  sleep: {
+    position: 'absolute',
+    width: '34%',
+    height: '34%',
+    right: '4%',
+    top: '0%',
+    zIndex: 3,
   },
 });

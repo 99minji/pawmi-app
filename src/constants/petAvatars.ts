@@ -5,16 +5,32 @@ export const petAvatars = {
     idle: require('../../assets/avatars/dog/pomeranian/idle.png'),
     happy: require('../../assets/avatars/dog/pomeranian/happy.png'),
     sick: require('../../assets/avatars/dog/pomeranian/sick.png'),
-    rainy: require('../../assets/avatars/dog/pomeranian/rainy.png'),
     care: require('../../assets/avatars/dog/pomeranian/care.png'),
     rest: require('../../assets/avatars/dog/pomeranian/rest.png'),
     idleBody: require('../../assets/avatars/dog/pomeranian/idle-body.png'),
     idleTail: require('../../assets/avatars/dog/pomeranian/idle-tail.png'),
   },
+  SCHNAUZER: {
+    idle: require('../../assets/avatars/dog/schnauzer/idle.png'),
+    happy: require('../../assets/avatars/dog/schnauzer/happy.png'),
+    sick: require('../../assets/avatars/dog/schnauzer/sick.png'),
+    care: require('../../assets/avatars/dog/schnauzer/care.png'),
+    rest: require('../../assets/avatars/dog/schnauzer/rest.png'),
+    idleBody: require('../../assets/avatars/dog/schnauzer/idle-body.png'),
+    idleTail: require('../../assets/avatars/dog/schnauzer/idle-tail.png'),
+  },
 } as const;
+
+// rest 상태에서 아바타 위에 띄우는 Zzz 파츠 (품종 공통)
+export const restSleepSource = require('../../assets/avatars/rest-sleep.png');
+
+export const AVATAR_BREED_OPTIONS = Object.keys(
+  petAvatars,
+) as (keyof typeof petAvatars)[];
 
 export const AVATAR_BREED_LABELS: Record<AvatarBreed, string> = {
   POMERANIAN: '포메라니안',
+  SCHNAUZER: '슈나우저',
   MALTESE: '말티즈',
   POODLE: '푸들',
   BICHON: '비숑 프리제',
