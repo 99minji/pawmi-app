@@ -20,6 +20,9 @@ export type CareSchedule = {
   dueDate: string;
   repeat?: CareRepeat;
 
+  // 월/년 반복의 기준 일(day-of-month). 월말 보정 후에도 원래 날짜로 돌아가기 위해 사용
+  repeatAnchorDay?: number;
+
   // MEDICATION일 때 사용
   dosageText?: string;
 

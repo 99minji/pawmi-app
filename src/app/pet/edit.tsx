@@ -79,7 +79,8 @@ function PetEditForm({ pet }: { pet: Pet }) {
         ...(birthDate
           ? {
               birthDate: toDateString(birthDate),
-              estimatedAge: undefined,
+              // 정확한 생일을 저장하면 추정 나이는 DB에서 지운다. (undefined는 업데이트에서 제외됨)
+              estimatedAge: null,
             }
           : {}),
       });

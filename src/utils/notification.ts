@@ -2,6 +2,8 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import type { CareSchedule } from '@/types/care';
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -54,8 +56,18 @@ export const DEFAULT_NOTIFICATION_TIME = '09:00';
  *
  * 알림 ID를 따로 저장하지 않아도(앱 재시작 후에도) 일정 ID만으로 취소·재예약할 수 있다.
  */
+const CARE_NOTIFICATION_PREFIX = 'care-';
+
 function getCareNotificationIdentifier(scheduleId: string) {
-  return `care-${scheduleId}`;
+  return `${CARE_NOTIFICATION_PREFIX}${scheduleId}`;
+}
+
+// 예정일 + 알림 시간으로 실제 알림 시각을 만든다. (로컬 시간 기준)
+function getCareTriggerDate(dueDate: string, notificationTime: string) {
+  const [year, month, day] = dueDate.split('-').map(Number);
+  const [hour, minute] = notificationTime.split(':').map(Number);
+
+  return new Date(year, month - 1, day, hour, minute, 0);
 }
 
 type ScheduleCareNotificationParams = {
@@ -78,10 +90,7 @@ export async function scheduleCareNotification({
   dueDate,
   notificationTime = DEFAULT_NOTIFICATION_TIME,
 }: ScheduleCareNotificationParams) {
-  const [year, month, day] = dueDate.split('-').map(Number);
-  const [hour, minute] = notificationTime.split(':').map(Number);
-
-  const triggerDate = new Date(year, month - 1, day, hour, minute, 0);
+  const triggerDate = getCareTriggerDate(dueDate, notificationTime);
 
   try {
     await ensureCareNotificationChannel();
@@ -131,5 +140,76 @@ export async function cancelCareNotification(scheduleId: string) {
     );
   } catch (error) {
     console.warn('알림을 취소하지 못했어요.', error);
+  }
+}
+
+// 로그아웃 시 이전 사용자의 예약 알림을 모두 취소
+export async function cancelAllCareNotifications() {
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch (error) {
+    console.warn('알림을 취소하지 못했어요.', error);
+  }
+}
+
+/**
+ * DB 일정과 OS에 예약된 관리 알림을 맞춘다.
+ *
+ * 예약 대상: 미완료 + 알림 ON + 알림 시각이 현재보다 미래
+ * - 대상인데 OS에 없으면 예약
+ * - OS에 있는데 대상이 아니면 취소
+ * care- 로 시작하는 Pawmi 관리 알림만 다룬다.
+ */
+export async function reconcileCareNotifications(
+  schedules: CareSchedule[],
+  petName: string,
+) {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+
+    const scheduledIds = new Set(
+      scheduled
+        .map((notification) => notification.identifier)
+        .filter((identifier) =>
+          identifier.startsWith(CARE_NOTIFICATION_PREFIX),
+        ),
+    );
+
+    const now = Date.now();
+
+    const targets = schedules.filter(
+      (schedule) =>
+        !schedule.completedAt &&
+        schedule.notificationEnabled &&
+        getCareTriggerDate(
+          schedule.dueDate,
+          schedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
+        ).getTime() > now,
+    );
+
+    const targetIds = new Set(
+      targets.map((schedule) => getCareNotificationIdentifier(schedule.id)),
+    );
+
+    for (const identifier of scheduledIds) {
+      if (!targetIds.has(identifier)) {
+        await Notifications.cancelScheduledNotificationAsync(identifier);
+      }
+    }
+
+    for (const schedule of targets) {
+      if (!scheduledIds.has(getCareNotificationIdentifier(schedule.id))) {
+        await scheduleCareNotification({
+          scheduleId: schedule.id,
+          petName,
+          careName: schedule.name,
+          dueDate: schedule.dueDate,
+          notificationTime:
+            schedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
+        });
+      }
+    }
+  } catch (error) {
+    console.warn('알림을 맞추지 못했어요.', error);
   }
 }

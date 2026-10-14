@@ -1,12 +1,12 @@
 import type { CareRepeat, CareScheduleType } from '@/types/care';
 import { parseDateString, toDateString } from './date';
 
-function addMonthsSafe(source: Date, months: number) {
+function addMonthsSafe(source: Date, months: number, anchorDay: number) {
   const year = source.getFullYear();
 
   const month = source.getMonth();
 
-  const day = source.getDate();
+  const day = anchorDay;
 
   const targetFirstDay = new Date(year, month + months, 1);
 
@@ -21,12 +21,12 @@ function addMonthsSafe(source: Date, months: number) {
   return toDateString(result);
 }
 
-function addYearsSafe(source: Date, years: number) {
+function addYearsSafe(source: Date, years: number, anchorDay: number) {
   const targetYear = source.getFullYear() + years;
 
   const month = source.getMonth();
 
-  const day = source.getDate();
+  const day = anchorDay;
 
   const lastDay = new Date(targetYear, month + 1, 0).getDate();
 
@@ -35,8 +35,34 @@ function addYearsSafe(source: Date, years: number) {
   return toDateString(result);
 }
 
-export function addRepeatToDate(dateString: string, repeat: CareRepeat) {
+/**
+ * 월/년 반복의 기준 일
+ *
+ * 사용자가 고른 예정일의 day-of-month를 저장해 두고 다음 일정에도 그대로 물려준다.
+ * (1/31 → 2/28 → 3/31 처럼 월말 보정 후에도 원래 날짜로 돌아오도록)
+ */
+export function getRepeatAnchorDay(dueDate: string, repeat?: CareRepeat) {
+  if (repeat?.unit !== 'MONTH' && repeat?.unit !== 'YEAR') {
+    return null;
+  }
+
+  return parseDateString(dueDate).getDate();
+}
+
+/**
+ * 다음 예정일 계산
+ *
+ * MONTH / YEAR는 anchorDay(없으면 dateString의 일)를 기준으로
+ * min(anchorDay, 대상 월의 마지막 날)로 계산한다.
+ */
+export function addRepeatToDate(
+  dateString: string,
+  repeat: CareRepeat,
+  anchorDay?: number,
+) {
   const date = parseDateString(dateString);
+
+  const day = anchorDay ?? date.getDate();
 
   switch (repeat.unit) {
     case 'DAY': {
@@ -52,21 +78,15 @@ export function addRepeatToDate(dateString: string, repeat: CareRepeat) {
     }
 
     case 'MONTH':
-      return addMonthsSafe(date, repeat.interval);
+      return addMonthsSafe(date, repeat.interval, day);
 
     case 'YEAR':
-      return addYearsSafe(date, repeat.interval);
+      return addYearsSafe(date, repeat.interval, day);
   }
 }
 
 export type RepeatPreset =
-  | 'NONE'
-  | 'DAILY'
-  | 'WEEKLY'
-  | 'MONTHLY'
-  | 'SIX_MONTHS'
-  | 'YEARLY'
-  | 'CUSTOM';
+  'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'SIX_MONTHS' | 'YEARLY' | 'CUSTOM';
 
 const REPEAT_LABELS: Record<Exclude<RepeatPreset, 'CUSTOM'>, string> = {
   NONE: '반복 없음',

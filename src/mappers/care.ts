@@ -16,6 +16,8 @@ export function mapCareScheduleFromDb(row: any): CareSchedule {
           }
         : undefined,
 
+    repeatAnchorDay: row.repeat_anchor_day ?? undefined,
+
     dosageText: row.dosage_text ?? undefined,
 
     notificationEnabled: row.notification_enabled ?? false,

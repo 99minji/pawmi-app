@@ -2,6 +2,8 @@ import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { PrimaryButton } from '@/components/common/PrimaryButton';
+
 import { AppText } from '@/components/common/AppText';
 import { colors } from '@/constants/colors';
 
@@ -9,11 +11,12 @@ import { useAuth } from '@/providers/AuthProvider';
 
 import { getCareSchedules } from '@/services/care';
 import { getHealthRecords } from '@/services/health';
-import { getMyPet } from '@/services/pet';
+import { getMyPets } from '@/services/pet';
 
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
+import { reconcileCareNotifications } from '@/utils/notification';
 
 export default function IndexScreen() {
   const { session, loading: authLoading } = useAuth();
@@ -36,6 +39,9 @@ export default function IndexScreen() {
 
   const [error, setError] = useState(false);
 
+  // 오류 화면에서 다시 시도할 때 데이터 로드를 다시 실행한다.
+  const [retryCount, setRetryCount] = useState(0);
+
   useEffect(() => {
     if (authLoading) {
       return;
@@ -55,7 +61,8 @@ export default function IndexScreen() {
       setError(false);
 
       try {
-        const pet = await getMyPet();
+        // 다중 펫 화면이 생기기 전까지는 가장 먼저 등록한 펫을 사용한다.
+        const [pet] = await getMyPets();
 
         if (!pet) {
           clearPet();
@@ -77,6 +84,9 @@ export default function IndexScreen() {
         setRecords(records);
         setSchedules(schedules);
 
+        // DB 일정 기준으로 OS 예약 알림을 맞춘다. (앱 진입을 막지 않도록 기다리지 않음)
+        reconcileCareNotifications(schedules, pet.name);
+
         setHasPet(true);
       } catch (error) {
         console.log('APP DATA LOAD ERROR:', error);
@@ -97,6 +107,7 @@ export default function IndexScreen() {
     clearRecords,
     setSchedules,
     clearSchedules,
+    retryCount,
   ]);
 
   if (authLoading || (session && checkingData)) {
@@ -121,8 +132,15 @@ export default function IndexScreen() {
         <AppText variant="body1">정보를 불러오지 못했어요.</AppText>
 
         <AppText variant="body2" color="secondary" style={styles.message}>
-          앱을 다시 실행해주세요.
+          네트워크 연결을 확인한 뒤 다시 시도해주세요.
         </AppText>
+
+        <View style={styles.retryButton}>
+          <PrimaryButton
+            label="다시 시도"
+            onPress={() => setRetryCount((count) => count + 1)}
+          />
+        </View>
       </View>
     );
   }
@@ -145,5 +163,10 @@ const styles = StyleSheet.create({
 
   message: {
     marginTop: 10,
+  },
+
+  retryButton: {
+    alignSelf: 'stretch',
+    marginTop: 24,
   },
 });

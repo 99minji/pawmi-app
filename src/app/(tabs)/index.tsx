@@ -15,11 +15,8 @@ import { QuickRecordSheet } from '@/components/record/QuickRecordSheet';
 import { colors } from '@/constants/colors';
 import { getPetAvatar, restSleepSource } from '@/constants/petAvatars';
 import { useIsNightTime } from '@/hooks/useIsNightTime';
-import { completeCareScheduleById, createCareSchedule } from '@/services/care';
-import {
-  createMedicationRecord,
-  createVaccinationRecord,
-} from '@/services/health';
+import { useTodayDateString } from '@/hooks/useTodayDateString';
+import { completeCareSchedule } from '@/services/care';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
@@ -59,6 +56,9 @@ const SCROLL_TOP_OFFSET = 24;
 
 // 아바타를 탭했을 때 happy 상태를 보여주는 시간
 const TAP_HAPPY_DURATION = 3000;
+
+// 완료 처리 후 모든 완료 버튼을 잠가두는 시간
+const COMPLETE_LOCK_DURATION = 800;
 
 type AvatarState = 'idle' | 'happy' | 'care' | 'rest' | 'sick';
 
@@ -160,17 +160,7 @@ export default function TodayScreen() {
     careAvatarEndTime !== null &&
     careAvatarEndTime !== expiredCareAvatarEndTime;
 
-  const todayDateString = useMemo(() => {
-    const today = new Date();
-
-    const year = today.getFullYear();
-
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-
-    const day = String(today.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-  }, []);
+  const todayDateString = useTodayDateString();
 
   /**
    * 오늘 해야 할 관리 일정
@@ -303,92 +293,83 @@ export default function TodayScreen() {
     quickRecordSheetRef.current?.expand();
   };
 
+  // 완료 버튼 연타 시 state 반영 전에 두 번째 요청이 들어가지 않도록 즉시 잠근다.
+  const completingRef = useRef(false);
+
+  // 완료 직후 다음 회차 카드가 같은 자리에 나타나 연타로 함께 완료되지 않도록
+  // 모든 완료 버튼을 잠깐 잠근다.
+  const [isCompleteLocked, setIsCompleteLocked] = useState(false);
+
+  const completeUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  useEffect(() => {
+    return () => {
+      if (completeUnlockTimerRef.current) {
+        clearTimeout(completeUnlockTimerRef.current);
+      }
+    };
+  }, []);
+
   /**
    * 오늘 할 일 완료
    *
-   * 1. CareSchedule 완료 처리
-   * 2. 실제 수행 이력을 HealthRecord에 남김
-   * 3. 반복 일정이면 다음 일정과 알림을 등록
+   * 완료 처리, HealthRecord 생성, 반복 일정의 다음 일정 생성은
+   * DB 트랜잭션 하나(complete_care_schedule RPC)로 처리한다.
+   * 이미 완료된 일정이면 DB가 아무것도 만들지 않는다.
    */
   const handleCompleteSchedule = async (schedule: CareSchedule) => {
-    if (!pet || completingScheduleId) {
+    if (!pet || completingRef.current) {
       return;
     }
 
+    completingRef.current = true;
+    setIsCompleteLocked(true);
     setCompletingScheduleId(schedule.id);
 
     try {
-      // 1. 현재 일정을 DB에서 완료 처리
-      const completedSchedule = await completeCareScheduleById(schedule.id);
+      // 다음 예정일은 실제 완료일이 아니라 기존 dueDate 기준으로 계산
+      const nextDueDate = schedule.repeat
+        ? addRepeatToDate(
+            schedule.dueDate,
+            schedule.repeat,
+            schedule.repeatAnchorDay,
+          )
+        : null;
 
-      // 2. 화면 상태에도 DB 결과 반영하고, 예약된 알림은 취소
-      replaceSchedule(completedSchedule);
+      const result = await completeCareSchedule(
+        schedule.id,
+        dateToOccurredAt(new Date()),
+        nextDueDate,
+      );
 
-      await cancelCareNotification(schedule.id);
+      replaceSchedule(result.schedule);
 
-      // 3. 예방접종 일정이었다면
-      // 실제 건강 기록에도 남긴다.
-      if (schedule.type === 'VACCINATION') {
-        const record = await createVaccinationRecord(
-          pet.id,
-          schedule.name,
-          undefined,
-          dateToOccurredAt(new Date()),
-        );
-
-        addRecord(record);
+      if (result.record) {
+        addRecord(result.record);
       }
 
-      if (schedule.type === 'MEDICATION') {
-        const record = await createMedicationRecord(
-          pet.id,
-          schedule.name,
-          schedule.dosageText,
-          undefined,
-          dateToOccurredAt(new Date()),
-        );
-
-        addRecord(record);
+      if (result.next) {
+        addScheduleFromDb(result.next);
       }
 
-      // 4. 반복 일정이 없다면 종료
-      if (!schedule.repeat) {
-        return;
-      }
+      // 알림 처리는 DB 반영 이후라 실패해도 완료 자체는 유지된다.
+      try {
+        await cancelCareNotification(schedule.id);
 
-      // 5. 다음 예정일 계산
-      const nextDueDate = addRepeatToDate(schedule.dueDate, schedule.repeat);
-
-      // 6. DB에 다음 일정 생성
-      const nextSchedule = await createCareSchedule({
-        petId: schedule.petId,
-        type: schedule.type,
-        name: schedule.name,
-
-        dueDate: nextDueDate,
-
-        repeat: schedule.repeat,
-
-        dosageText: schedule.dosageText,
-
-        notificationEnabled: schedule.notificationEnabled,
-
-        notificationTime:
-          schedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
-      });
-
-      // 7. 화면에 바로 반영하고 다음 일정 알림 예약
-      addScheduleFromDb(nextSchedule);
-
-      if (nextSchedule.notificationEnabled) {
-        await scheduleCareNotification({
-          scheduleId: nextSchedule.id,
-          petName: pet.name,
-          careName: nextSchedule.name,
-          dueDate: nextSchedule.dueDate,
-          notificationTime:
-            nextSchedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
-        });
+        if (result.next?.notificationEnabled) {
+          await scheduleCareNotification({
+            scheduleId: result.next.id,
+            petName: pet.name,
+            careName: result.next.name,
+            dueDate: result.next.dueDate,
+            notificationTime:
+              result.next.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
+          });
+        }
+      } catch (error) {
+        console.log('COMPLETE CARE NOTIFICATION ERROR:', error);
       }
     } catch (error) {
       console.log('COMPLETE CARE ERROR:', error);
@@ -396,6 +377,11 @@ export default function TodayScreen() {
       Alert.alert('완료 처리하지 못했어요', '잠시 후 다시 시도해주세요.');
     } finally {
       setCompletingScheduleId(null);
+
+      completeUnlockTimerRef.current = setTimeout(() => {
+        completingRef.current = false;
+        setIsCompleteLocked(false);
+      }, COMPLETE_LOCK_DURATION);
     }
   };
 
@@ -589,7 +575,7 @@ export default function TodayScreen() {
                     completingScheduleId === schedule.id &&
                       styles.completeButtonDisabled,
                   ]}
-                  disabled={completingScheduleId === schedule.id}
+                  disabled={isCompleteLocked}
                   onPress={() => handleCompleteSchedule(schedule)}
                 >
                   <AppText variant="label" color="inverse">

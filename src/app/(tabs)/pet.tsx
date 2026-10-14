@@ -15,9 +15,12 @@ import { colors } from '@/constants/colors';
 import { getPetAvatar } from '@/constants/petAvatars';
 import { supabase } from '@/lib/supabase';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
+import { useHealthStore } from '@/stores/useHealthStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 import { usePetStore } from '@/stores/usePetStore';
 import type { CareRepeat } from '@/types/care';
 import { parseDateString } from '@/utils/date';
+import { cancelAllCareNotifications } from '@/utils/notification';
 import { formatBreed, formatGender, formatPetAge } from '@/utils/pet';
 
 export default function PetScreen() {
@@ -60,11 +63,27 @@ export default function PetScreen() {
     router.push('/care/create');
   };
 
+  /**
+   * 로그아웃
+   *
+   * 이전 계정의 예약 알림과 화면 데이터가 다음 계정에 남지 않도록
+   * 알림 취소 → store 초기화 → signOut 순서로 처리한다.
+   */
   const handleLogout = async () => {
+    await cancelAllCareNotifications();
+
+    useNotificationStore.getState().clearPendingScheduleId();
+    usePetStore.getState().clearPet();
+    useHealthStore.getState().clearRecords();
+    useCareScheduleStore.getState().clearSchedules();
+
     const { error } = await supabase.auth.signOut();
 
     if (error) {
       Alert.alert('로그아웃하지 못했어요', '잠시 후 다시 시도해주세요.');
+
+      // 세션이 남아 있으므로 데이터를 다시 불러온다.
+      router.replace('/');
 
       return;
     }

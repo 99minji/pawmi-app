@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Alert, Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
@@ -15,6 +16,15 @@ import { usePetStore } from '@/stores/usePetStore';
 
 import { mapPetFromDb } from '@/mappers/pet';
 import { createPet } from '@/services/pet';
+
+// 요청 식별용 UUID v4 (보안 용도가 아니므로 Math.random으로 충분)
+function createClientRequestId() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = (Math.random() * 16) | 0;
+
+    return (char === 'x' ? random : (random & 0x3) | 0x8).toString(16);
+  });
+}
 
 export default function AvatarScreen() {
   const name = useOnboardingStore((state) => state.name);
@@ -37,10 +47,21 @@ export default function AvatarScreen() {
 
   const setPet = usePetStore((state) => state.setPet);
 
+  const [submitting, setSubmitting] = useState(false);
+
+  // 연타 시 state 반영 전에 두 번째 요청이 들어가지 않도록 즉시 잠근다.
+  const submittingRef = useRef(false);
+
+  // 이 온보딩 제출을 식별하는 값. 재시도해도 같은 값을 보내 DB에서 중복 생성을 막는다.
+  const clientRequestIdRef = useRef(createClientRequestId());
+
   const handleComplete = async () => {
-    if (!species || !gender) {
+    if (!species || !gender || submittingRef.current) {
       return;
     }
+
+    submittingRef.current = true;
+    setSubmitting(true);
 
     try {
       const createdPet = await createPet({
@@ -51,6 +72,7 @@ export default function AvatarScreen() {
         estimatedAge: estimatedAge ?? undefined,
         breed: avatarBreed ? AVATAR_BREED_LABELS[avatarBreed] : undefined,
         avatarBreed: avatarBreed ?? undefined,
+        clientRequestId: clientRequestIdRef.current,
       });
 
       setPet(mapPetFromDb(createdPet));
@@ -60,6 +82,11 @@ export default function AvatarScreen() {
       router.replace('/(tabs)');
     } catch (error) {
       console.log('CREATE PET ERROR:', error);
+
+      Alert.alert('등록하지 못했어요', '잠시 후 다시 시도해주세요.');
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -71,8 +98,8 @@ export default function AvatarScreen() {
       description="나중에 언제든 바꿀 수 있어요."
       footer={
         <PrimaryButton
-          label="포우미 시작하기"
-          disabled={!avatarBreed}
+          label={submitting ? '등록 중...' : '포우미 시작하기'}
+          disabled={!avatarBreed || submitting}
           onPress={handleComplete}
         />
       }
