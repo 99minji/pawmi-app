@@ -162,7 +162,7 @@ export default function PetScreen() {
 
       {upcomingSchedules.length > 0 ? (
         <View style={styles.scheduleList}>
-          {upcomingSchedules.slice(0, 5).map((schedule) => (
+          {upcomingSchedules.map((schedule) => (
             <Pressable
               key={schedule.id}
               style={styles.scheduleCard}

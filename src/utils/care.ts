@@ -1,4 +1,4 @@
-import type { CareRepeat, CareScheduleType } from '@/types/care';
+import type { CareRepeat, CareScheduleType, RepeatUnit } from '@/types/care';
 import { parseDateString, toDateString } from './date';
 
 function addMonthsSafe(source: Date, months: number, anchorDay: number) {
@@ -88,13 +88,14 @@ export function addRepeatToDate(
 export type RepeatPreset =
   'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'SIX_MONTHS' | 'YEARLY' | 'CUSTOM';
 
-const REPEAT_LABELS: Record<Exclude<RepeatPreset, 'CUSTOM'>, string> = {
+const REPEAT_LABELS: Record<RepeatPreset, string> = {
   NONE: '반복 없음',
   DAILY: '매일',
   WEEKLY: '매주',
   MONTHLY: '매월',
   SIX_MONTHS: '6개월마다',
   YEARLY: '매년',
+  CUSTOM: '사용자 지정',
 };
 
 // 관리 종류마다 고를 수 있는 반복 주기
@@ -111,7 +112,13 @@ const REPEAT_PRESETS_BY_TYPE: Record<
 export function getRepeatOptions(
   type: CareScheduleType,
 ): { label: string; value: RepeatPreset }[] {
-  return (['NONE', ...REPEAT_PRESETS_BY_TYPE[type]] as const).map((value) => ({
+  const presets: RepeatPreset[] = [
+    'NONE',
+    ...REPEAT_PRESETS_BY_TYPE[type],
+    'CUSTOM',
+  ];
+
+  return presets.map((value) => ({
     label: REPEAT_LABELS[value],
     value,
   }));
@@ -155,4 +162,44 @@ const SCHEDULE_TYPE_LABELS: Record<CareScheduleType, string> = {
 
 export function formatScheduleType(type: CareScheduleType) {
   return SCHEDULE_TYPE_LABELS[type];
+}
+
+/**
+ * 사용자 지정 반복 입력값(숫자 문자열 + 단위)을 CareRepeat으로 변환한다.
+ * 1~365 범위의 정수가 아니면 undefined.
+ */
+export function parseCustomRepeat(
+  intervalText: string,
+  unit: RepeatUnit,
+): CareRepeat | undefined {
+  const interval = Number(intervalText);
+
+  if (!Number.isInteger(interval) || interval < 1 || interval > 365) {
+    return undefined;
+  }
+
+  return { unit, interval };
+}
+
+export function formatCustomRepeat(interval: number, unit: RepeatUnit) {
+  switch (unit) {
+    case 'DAY':
+      return interval === 1 ? '매일' : `${interval}일마다`;
+
+    case 'WEEK':
+      return interval === 1 ? '매주' : `${interval}주마다`;
+
+    case 'MONTH':
+      return interval === 1 ? '매월' : `${interval}개월마다`;
+
+    case 'YEAR':
+      return interval === 1 ? '매년' : `${interval}년마다`;
+  }
+}
+
+/**
+ * HH:mm 형식(00:00 ~ 23:59)인지
+ */
+export function isValidTime(value: string) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim());
 }

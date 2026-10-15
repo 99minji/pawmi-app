@@ -1,14 +1,11 @@
-import {
-  ChevronRight,
-  HeartPulse,
-  Hospital,
-  Pill,
-  Plus,
-  ShieldCheck,
-} from 'lucide-react-native';
+import BottomSheet from '@gorhom/bottom-sheet';
+import { router } from 'expo-router';
+import { ChevronRight, Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { MedicationGroupCard } from '@/components/care/MedicationGroupCard';
+import { TodayTaskCard } from '@/components/care/TodayTaskCard';
 import { AppText } from '@/components/common/AppText';
 import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { QuickRecordSheet } from '@/components/record/QuickRecordSheet';
@@ -32,24 +29,7 @@ import {
   scheduleCareNotification,
 } from '@/utils/notification';
 import { formatBreed, formatGender, formatPetAge } from '@/utils/pet';
-import BottomSheet from '@gorhom/bottom-sheet';
-import { router } from 'expo-router';
-
-const renderScheduleIcon = (type: CareSchedule['type']) => {
-  switch (type) {
-    case 'VACCINATION':
-      return <ShieldCheck size={20} color={colors.primary[700]} />;
-
-    case 'MEDICATION':
-      return <Pill size={20} color={colors.primary[700]} />;
-
-    case 'HEARTWORM':
-      return <HeartPulse size={20} color={colors.primary[700]} />;
-
-    case 'CHECKUP':
-      return <Hospital size={20} color={colors.primary[700]} />;
-  }
-};
+import { buildTodayItems, getActiveSchedules } from '@/utils/todaySchedule';
 
 // 스크롤 후 카드 위에 남겨둘 여백
 const SCROLL_TOP_OFFSET = 24;
@@ -65,38 +45,19 @@ type AvatarState = 'idle' | 'happy' | 'care' | 'rest' | 'sick';
 // 개발 중 아바타 상태 확인용. 확인이 끝나면 null로 되돌린다. (프로덕션에서는 항상 무시)
 const DEBUG_AVATAR_STATE: AvatarState | null = null;
 
-const getScheduleTitle = (schedule: CareSchedule) => {
-  switch (schedule.type) {
-    case 'VACCINATION':
-      return `${schedule.name} 예방하는 날이에요`;
-
-    case 'MEDICATION':
-      return `${schedule.name} 먹이는 날이에요`;
-
-    case 'HEARTWORM':
-      return `${schedule.name} 예방하는 날이에요`;
-
-    case 'CHECKUP':
-      return `${schedule.name} 확인하는 날이에요`;
-
-    default:
-      return `${schedule.name} 관리하는 날이에요`;
-  }
-};
-
 export default function TodayScreen() {
+  // ─────────────────────────────────────────────
+  // Store
+  // ─────────────────────────────────────────────
   const pet = usePetStore((state) => state.pet);
 
   const allRecords = useHealthStore((state) => state.records);
-
   const addRecord = useHealthStore((state) => state.addRecord);
 
   const schedules = useCareScheduleStore((state) => state.schedules);
-
   const replaceSchedule = useCareScheduleStore(
     (state) => state.replaceSchedule,
   );
-
   const addScheduleFromDb = useCareScheduleStore(
     (state) => state.addScheduleFromDb,
   );
@@ -104,35 +65,47 @@ export default function TodayScreen() {
   const pendingScheduleId = useNotificationStore(
     (state) => state.pendingScheduleId,
   );
-
   const clearPendingScheduleId = useNotificationStore(
     (state) => state.clearPendingScheduleId,
   );
 
+  const todayDateString = useTodayDateString();
+  const isNightTime = useIsNightTime();
+
   const quickRecordSheetRef = useRef<BottomSheet>(null);
 
-  const scrollViewRef = useRef<ScrollView>(null);
+  // ─────────────────────────────────────────────
+  // 데이터 가공
+  // ─────────────────────────────────────────────
 
-  // 알림으로 진입했을 때 카드 위치를 찾기 위한 레이아웃 정보
-  const taskListYRef = useRef<number | null>(null);
-
-  const taskCardYRef = useRef<Record<string, number>>({});
-
-  const [completingScheduleId, setCompletingScheduleId] = useState<
-    string | null
-  >(null);
-
-  /**
-   * 현재 반려동물의 건강 기록
-   */
+  // 현재 반려동물의 건강 기록
   const records = useMemo(
     () => allRecords.filter((record) => record.petId === pet?.id),
     [allRecords, pet?.id],
   );
 
-  /**
-   * 건강 기록을 남긴 뒤 1분 동안 아바타를 care 상태로 보여준다.
-   */
+  // 오늘 해야 할(오늘 예정 + 놓친) 미완료 일정
+  const activeSchedules = useMemo(
+    () => getActiveSchedules(schedules, pet?.id, todayDateString),
+    [schedules, pet?.id, todayDateString],
+  );
+
+  // 화면에 그릴 단위 (일반 카드 / 하루 여러 번 투약 묶음 카드)
+  const todayItems = useMemo(
+    () => buildTodayItems(activeSchedules, schedules, pet?.id),
+    [activeSchedules, schedules, pet?.id],
+  );
+
+  const careSuggestions = useMemo(
+    () => (pet ? getCareSuggestions({ pet, records, schedules }) : []),
+    [pet, records, schedules],
+  );
+
+  // ─────────────────────────────────────────────
+  // 아바타 상태
+  // ─────────────────────────────────────────────
+
+  // 건강 기록을 남긴 뒤 1분 동안 아바타를 care 상태로 보여준다.
   const careAvatarEndTime = useMemo(
     () => getCareAvatarEndTime(records),
     [records],
@@ -160,48 +133,18 @@ export default function TodayScreen() {
     careAvatarEndTime !== null &&
     careAvatarEndTime !== expiredCareAvatarEndTime;
 
-  const todayDateString = useTodayDateString();
-
-  /**
-   * 오늘 해야 할 관리 일정
-   */
-  const todaySchedules = useMemo(() => {
-    return schedules
-      .filter(
-        (schedule) =>
-          schedule.petId === pet?.id &&
-          schedule.dueDate <= todayDateString &&
-          !schedule.completedAt,
-      )
-      .sort((a, b) => {
-        const aToday = a.dueDate === todayDateString;
-        const bToday = b.dueDate === todayDateString;
-
-        if (aToday && !bToday) return -1;
-        if (!aToday && bToday) return 1;
-
-        return b.dueDate.localeCompare(a.dueDate);
-      });
-  }, [schedules, pet?.id, todayDateString]);
-
-  /**
-   * 오늘 할 일을 모두 끝냈는지
-   *
-   * 오늘 완료한 일정이 있고 남은 일정이 없으면 아바타를 happy 상태로 보여준다.
-   */
+  // 오늘 완료한 일정이 있고 남은 일정이 없으면 happy 상태로 보여준다.
   const hasCompletedAllToday = useMemo(
     () =>
-      todaySchedules.length === 0 &&
+      activeSchedules.length === 0 &&
       schedules.some(
         (schedule) =>
           schedule.petId === pet?.id &&
           !!schedule.completedAt &&
           toDateString(new Date(schedule.completedAt)) === todayDateString,
       ),
-    [todaySchedules, schedules, pet?.id, todayDateString],
+    [activeSchedules, schedules, pet?.id, todayDateString],
   );
-
-  const isNightTime = useIsNightTime();
 
   // 아바타를 탭하면 잠깐 happy 상태로 반응한다.
   const [isTapHappy, setIsTapHappy] = useState(false);
@@ -229,18 +172,22 @@ export default function TodayScreen() {
     );
   };
 
-  /**
-   * 알림으로 진입한 일정 카드로 스크롤
-   *
-   * 목록과 카드의 레이아웃이 모두 잡힌 뒤에만 스크롤하고 대기 상태를 비운다.
-   */
+  // ─────────────────────────────────────────────
+  // 알림으로 진입한 일정 카드로 스크롤
+  // ─────────────────────────────────────────────
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // 카드 위치를 찾기 위한 레이아웃 정보
+  const taskListYRef = useRef<number | null>(null);
+  const taskCardYRef = useRef<Record<string, number>>({});
+
+  // 목록과 카드의 레이아웃이 모두 잡힌 뒤에만 스크롤하고 대기 상태를 비운다.
   const scrollToPendingSchedule = useCallback(() => {
     if (!pendingScheduleId) {
       return;
     }
 
     const taskListY = taskListYRef.current;
-
     const taskCardY = taskCardYRef.current[pendingScheduleId];
 
     if (taskListY === null || taskCardY === undefined) {
@@ -261,9 +208,10 @@ export default function TodayScreen() {
     }
 
     // 오늘 할 일에 없는 일정(완료됐거나 날짜가 지난 일정)이면 스크롤하지 않는다.
-    if (!todaySchedules.some((schedule) => schedule.id === pendingScheduleId)) {
+    if (
+      !activeSchedules.some((schedule) => schedule.id === pendingScheduleId)
+    ) {
       clearPendingScheduleId();
-
       return;
     }
 
@@ -272,26 +220,26 @@ export default function TodayScreen() {
   }, [
     pendingScheduleId,
     pet,
-    todaySchedules,
+    activeSchedules,
     clearPendingScheduleId,
     scrollToPendingSchedule,
   ]);
 
-  const careSuggestions = useMemo(() => {
-    if (!pet) {
-      return [];
-    }
-
-    return getCareSuggestions({
-      pet,
-      records,
-      schedules,
+  // 카드 레이아웃이 잡히면 위치를 기록한다. (묶음 카드는 그룹 내 모든 일정이 같은 위치)
+  const registerCardLayout = (scheduleIds: string[], y: number) => {
+    scheduleIds.forEach((id) => {
+      taskCardYRef.current[id] = y;
     });
-  }, [pet, records, schedules]);
 
-  const openQuickRecordSheet = () => {
-    quickRecordSheetRef.current?.expand();
+    scrollToPendingSchedule();
   };
+
+  // ─────────────────────────────────────────────
+  // 오늘 할 일 완료
+  // ─────────────────────────────────────────────
+  const [completingScheduleId, setCompletingScheduleId] = useState<
+    string | null
+  >(null);
 
   // 완료 버튼 연타 시 state 반영 전에 두 번째 요청이 들어가지 않도록 즉시 잠근다.
   const completingRef = useRef(false);
@@ -313,8 +261,6 @@ export default function TodayScreen() {
   }, []);
 
   /**
-   * 오늘 할 일 완료
-   *
    * 완료 처리, HealthRecord 생성, 반복 일정의 다음 일정 생성은
    * DB 트랜잭션 하나(complete_care_schedule RPC)로 처리한다.
    * 이미 완료된 일정이면 DB가 아무것도 만들지 않는다.
@@ -385,6 +331,37 @@ export default function TodayScreen() {
     }
   };
 
+  // ─────────────────────────────────────────────
+  // 기타 액션
+  // ─────────────────────────────────────────────
+  const openQuickRecordSheet = () => {
+    quickRecordSheetRef.current?.expand();
+  };
+
+  const handleCareSuggestionAction = (suggestion: CareSuggestion) => {
+    if (!suggestion.action) {
+      return;
+    }
+
+    switch (suggestion.action.type) {
+      case 'CREATE_CARE':
+        router.push({
+          pathname: '/care/create',
+          params: {
+            type: suggestion.action.careType,
+          },
+        });
+        break;
+
+      case 'CREATE_WEIGHT_RECORD':
+        router.push('/record/weight');
+        break;
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // 렌더링
+  // ─────────────────────────────────────────────
   if (!pet) {
     return (
       <View style={styles.emptyContainer}>
@@ -395,9 +372,6 @@ export default function TodayScreen() {
     );
   }
 
-  /**
-   * 아바타 상태
-   */
   const avatar = getPetAvatar(pet.avatarBreed);
 
   // 우선순위: 탭 반응 > 건강 기록 직후(care) > 밤 시간(rest) > 오늘 할 일 완료(happy) > idle
@@ -430,27 +404,6 @@ export default function TodayScreen() {
   const avatarReaction = isTapHappy ? 'happy' : isCareAvatar ? 'care' : 'idle';
 
   const primarySuggestion = careSuggestions[0];
-
-  const handleCareSuggestionAction = (suggestion: CareSuggestion) => {
-    if (!suggestion.action) {
-      return;
-    }
-
-    switch (suggestion.action.type) {
-      case 'CREATE_CARE':
-        router.push({
-          pathname: '/care/create',
-          params: {
-            type: suggestion.action.careType,
-          },
-        });
-        break;
-
-      case 'CREATE_WEIGHT_RECORD':
-        router.push('/record/weight');
-        break;
-    }
-  };
 
   return (
     <View style={styles.screen}>
@@ -517,7 +470,7 @@ export default function TodayScreen() {
           오늘 할 일
         </AppText>
 
-        {todaySchedules.length > 0 ? (
+        {todayItems.length > 0 ? (
           <View
             style={styles.taskList}
             onLayout={(event) => {
@@ -526,64 +479,40 @@ export default function TodayScreen() {
               scrollToPendingSchedule();
             }}
           >
-            {todaySchedules.map((schedule) => (
-              <View
-                key={schedule.id}
-                style={styles.taskCard}
-                onLayout={(event) => {
-                  taskCardYRef.current[schedule.id] =
-                    event.nativeEvent.layout.y;
-
-                  scrollToPendingSchedule();
-                }}
-              >
-                <View style={styles.taskIcon}>
-                  {renderScheduleIcon(schedule.type)}
-                </View>
-
-                <View style={styles.taskContent}>
-                  <AppText variant="body1">
-                    {getScheduleTitle(schedule)}
-                  </AppText>
-
-                  {schedule.type === 'MEDICATION' && schedule.dosageText && (
-                    <AppText
-                      variant="body2"
-                      color="secondary"
-                      style={styles.taskDosage}
-                    >
-                      복용량 {schedule.dosageText}
-                    </AppText>
-                  )}
-
-                  <AppText
-                    variant="label"
-                    color={
-                      schedule.dueDate < todayDateString ? 'error' : 'tertiary'
-                    }
-                    style={styles.taskDescription}
-                  >
-                    {schedule.dueDate < todayDateString
-                      ? '놓친 일정'
-                      : '오늘 예정'}
-                  </AppText>
-                </View>
-
-                <Pressable
-                  style={[
-                    styles.completeButton,
-                    completingScheduleId === schedule.id &&
-                      styles.completeButtonDisabled,
-                  ]}
+            {todayItems.map((item) =>
+              item.kind === 'MEDICATION_GROUP' ? (
+                <MedicationGroupCard
+                  key={item.key}
+                  dueDate={item.dueDate}
+                  schedules={item.schedules}
+                  todayDateString={todayDateString}
+                  completingScheduleId={completingScheduleId}
                   disabled={isCompleteLocked}
-                  onPress={() => handleCompleteSchedule(schedule)}
-                >
-                  <AppText variant="label" color="inverse">
-                    {completingScheduleId === schedule.id ? '처리 중' : '완료'}
-                  </AppText>
-                </Pressable>
-              </View>
-            ))}
+                  onComplete={handleCompleteSchedule}
+                  onLayout={(event) =>
+                    registerCardLayout(
+                      item.schedules.map((schedule) => schedule.id),
+                      event.nativeEvent.layout.y,
+                    )
+                  }
+                />
+              ) : (
+                <TodayTaskCard
+                  key={item.key}
+                  schedule={item.schedule}
+                  todayDateString={todayDateString}
+                  isCompleting={completingScheduleId === item.schedule.id}
+                  disabled={isCompleteLocked}
+                  onComplete={handleCompleteSchedule}
+                  onLayout={(event) =>
+                    registerCardLayout(
+                      [item.schedule.id],
+                      event.nativeEvent.layout.y,
+                    )
+                  }
+                />
+              ),
+            )}
           </View>
         ) : (
           <View style={styles.emptyTaskCard}>
@@ -763,35 +692,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  taskCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    padding: 16,
-  },
-
   taskList: {
     gap: 10,
     marginBottom: 28,
-  },
-
-  taskIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary[100],
-  },
-
-  taskContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-
-  taskDosage: {
-    marginTop: 4,
   },
 
   taskDescription: {
@@ -803,17 +706,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 18,
     marginBottom: 28,
-  },
-
-  completeButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: colors.primary[600],
-  },
-
-  completeButtonDisabled: {
-    opacity: 0.5,
   },
 
   careSuggestionCard: {

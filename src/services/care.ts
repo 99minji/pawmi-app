@@ -12,11 +12,11 @@ type CreateCareScheduleInput = {
   name: string;
   dueDate: string;
   repeat?: CareRepeat;
-
   dosageText?: string;
-
+  repeatAnchorDay?: number;
   notificationEnabled: boolean;
-  notificationTime: string;
+  notificationTime?: string;
+  scheduleGroupId?: string;
 };
 
 export async function getCareSchedules(petId: string) {
@@ -59,16 +59,17 @@ export async function createCareSchedule(input: CreateCareScheduleInput) {
       due_date: input.dueDate,
 
       repeat_unit: input.repeat?.unit ?? null,
-
       repeat_interval: input.repeat?.interval ?? null,
 
-      repeat_anchor_day: getRepeatAnchorDay(input.dueDate, input.repeat),
-
       dosage_text: input.dosageText?.trim() || null,
+      repeat_anchor_day:
+        input.repeatAnchorDay ??
+        getRepeatAnchorDay(input.dueDate, input.repeat),
+
+      schedule_group_id: input.scheduleGroupId ?? null,
 
       notification_enabled: input.notificationEnabled,
-
-      notification_time: input.notificationTime,
+      notification_time: input.notificationTime ?? null,
     })
     .select()
     .single();
@@ -78,6 +79,55 @@ export async function createCareSchedule(input: CreateCareScheduleInput) {
   }
 
   return mapCareScheduleFromDb(data);
+}
+
+export async function createCareSchedules(
+  inputs: CreateCareScheduleInput[],
+): Promise<CareSchedule[]> {
+  if (inputs.length === 0) {
+    return [];
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error('로그인이 필요해요.');
+  }
+
+  const rows = inputs.map((input) => ({
+    user_id: user.id,
+    pet_id: input.petId,
+    type: input.type,
+    name: input.name,
+    due_date: input.dueDate,
+
+    repeat_unit: input.repeat?.unit ?? null,
+    repeat_interval: input.repeat?.interval ?? null,
+
+    repeat_anchor_day:
+      input.repeatAnchorDay ?? getRepeatAnchorDay(input.dueDate, input.repeat),
+    dosage_text: input.dosageText?.trim() || null,
+
+    schedule_group_id: input.scheduleGroupId ?? null,
+
+    notification_enabled: input.notificationEnabled,
+    notification_time: input.notificationTime ?? null,
+  }));
+
+  const { data, error } = await supabase
+    .from('care_schedules')
+    .insert(rows)
+    .select();
+
+  if (error) {
+    console.log('CREATE CARE SCHEDULES ERROR:', error);
+    throw error;
+  }
+
+  return (data ?? []).map(mapCareScheduleFromDb);
 }
 
 type UpdateCareScheduleInput = {

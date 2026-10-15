@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { CalendarDays, Repeat2, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
+
 import {
   Alert,
   Pressable,
@@ -10,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { CustomRepeatInput } from '@/components/care/CustomRepeatInput';
 import { NotificationSetting } from '@/components/care/NotificationSetting';
 import { RepeatSelector } from '@/components/care/RepeatSelector';
 import { AppText } from '@/components/common/AppText';
@@ -26,17 +28,19 @@ import {
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { usePetStore } from '@/stores/usePetStore';
 
-import type { CareSchedule } from '@/types/care';
+import type { CareRepeat, CareSchedule, RepeatUnit } from '@/types/care';
 
 import {
   formatScheduleType,
   getRepeatFromPreset,
   getRepeatOptions,
   getRepeatPreset,
+  parseCustomRepeat,
   type RepeatPreset,
 } from '@/utils/care';
 
 import { parseDateString, toDateString } from '@/utils/date';
+
 import {
   cancelCareNotification,
   DEFAULT_NOTIFICATION_TIME,
@@ -76,38 +80,60 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
     (state) => state.removeScheduleFromStore,
   );
 
+  /**
+   * 예정일
+   */
   const [dueDate, setDueDate] = useState(() =>
     parseDateString(schedule.dueDate),
   );
 
-  const typeRepeatOptions = getRepeatOptions(schedule.type);
-
-  const savedPreset = getRepeatPreset(schedule.repeat);
+  /**
+   * 여러 시간으로 묶인 투약 일정인지
+   *
+   * 예:
+   * 안약 A
+   * 08:00 / 13:00 / 20:00
+   *
+   * 현재 detail 화면에서는 한 occurrence만 수정하게 되므로
+   * 그룹 투약의 반복 주기 변경은 막는다.
+   */
+  const isGroupedMedication =
+    schedule.type === 'MEDICATION' && !!schedule.scheduleGroupId;
 
   /**
-   * 기존 데이터가 현재 UI 프리셋에 없는 값이라면
-   * 수정하지 않는 한 기존 값을 유지할 수 있도록 한다.
+   * 반복
    */
-  const hasCustomRepeat = !typeRepeatOptions.some(
-    (option) => option.value === savedPreset,
+  const savedPreset = getRepeatPreset(schedule.repeat);
+
+  const repeatOptions = getRepeatOptions(schedule.type);
+
+  const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>(savedPreset);
+
+  /**
+   * Custom Repeat
+   *
+   * 기존 custom 값이 있으면 그대로 초기값으로 사용한다.
+   *
+   * 예:
+   * { unit: 'DAY', interval: 3 }
+   * → 3 / 일
+   */
+  const [customRepeatInterval, setCustomRepeatInterval] = useState(() =>
+    schedule.repeat ? String(schedule.repeat.interval) : '1',
   );
 
-  const repeatOptions = hasCustomRepeat
-    ? [
-        {
-          label: '기존 설정 유지',
-          value: 'CUSTOM' as const,
-        },
-        ...typeRepeatOptions,
-      ]
-    : typeRepeatOptions;
-
-  const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>(
-    hasCustomRepeat ? 'CUSTOM' : savedPreset,
+  const [customRepeatUnit, setCustomRepeatUnit] = useState<RepeatUnit>(
+    schedule.repeat?.unit ?? 'DAY',
   );
 
+  /**
+   * 투약량
+   */
   const [dosageText, setDosageText] = useState(schedule.dosageText ?? '');
 
+  /**
+   * 알림
+   */
   const [notificationEnabled, setNotificationEnabled] = useState(
     schedule.notificationEnabled,
   );
@@ -118,13 +144,45 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
 
   const [saving, setSaving] = useState(false);
 
-  const repeat =
-    repeatPreset === 'CUSTOM'
-      ? schedule.repeat
+  /**
+   * 실제 저장할 repeat
+   *
+   * 그룹 복약 일정은 현재 개별 반복 변경을 막고 있으므로
+   * 기존 repeat을 그대로 유지한다.
+   */
+  const repeat: CareRepeat | undefined = isGroupedMedication
+    ? schedule.repeat
+    : repeatPreset === 'CUSTOM'
+      ? parseCustomRepeat(customRepeatInterval, customRepeatUnit)
       : getRepeatFromPreset(repeatPreset);
 
+  const customRepeatValid =
+    isGroupedMedication || repeatPreset !== 'CUSTOM' || !!repeat;
+
+  /**
+   * 반복 설정 변경
+   */
+  const handleRepeatChange = (value: RepeatPreset) => {
+    if (isGroupedMedication) {
+      return;
+    }
+
+    setRepeatPreset(value);
+
+    /**
+     * CUSTOM으로 처음 진입할 때
+     * 값이 비어 있으면 기본값으로 보정한다.
+     */
+    if (value === 'CUSTOM' && !customRepeatInterval) {
+      setCustomRepeatInterval('1');
+    }
+  };
+
+  /**
+   * 저장
+   */
   const handleSave = async () => {
-    if (saving) {
+    if (saving || !customRepeatValid) {
       return;
     }
 
@@ -133,7 +191,9 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
     try {
       const updatedSchedule = await updateCareScheduleById(schedule.id, {
         name: schedule.name,
+
         dueDate: toDateString(dueDate),
+
         repeat,
 
         dosageText:
@@ -143,24 +203,51 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
 
         notificationEnabled,
 
-        // OFF여도 시간은 유지해서, 다시 켰을 때 사용자가 고른 시간이 남도록 한다.
+        /**
+         * 알림을 꺼도 시간을 유지한다.
+         *
+         * 나중에 다시 ON 했을 때
+         * 사용자가 선택했던 시간을 복구할 수 있다.
+         */
         notificationTime,
       });
 
+      /**
+       * DB 저장이 성공했으면
+       * 이 시점부터 일정 저장 자체는 성공이다.
+       */
       replaceSchedule(updatedSchedule);
 
-      // 기존 알림을 지우고, 알림이 켜져 있으면 수정된 날짜/시간으로 다시 예약한다.
-      if (updatedSchedule.notificationEnabled && pet) {
-        await scheduleCareNotification({
-          scheduleId: updatedSchedule.id,
-          petName: pet.name,
-          careName: updatedSchedule.name,
-          dueDate: updatedSchedule.dueDate,
-          notificationTime:
-            updatedSchedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
-        });
-      } else {
-        await cancelCareNotification(updatedSchedule.id);
+      /**
+       * 알림 처리는 DB 저장과 분리한다.
+       *
+       * 기기 알림 예약이 실패했다고
+       * 이미 저장된 일정까지 "저장 실패"로 보여주면 안 된다.
+       */
+      try {
+        if (updatedSchedule.notificationEnabled && pet) {
+          await scheduleCareNotification({
+            scheduleId: updatedSchedule.id,
+
+            petName: pet.name,
+
+            careName: updatedSchedule.name,
+
+            dueDate: updatedSchedule.dueDate,
+
+            notificationTime:
+              updatedSchedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
+          });
+        } else {
+          await cancelCareNotification(updatedSchedule.id);
+        }
+      } catch (error) {
+        console.log('UPDATE CARE NOTIFICATION ERROR:', error);
+
+        Alert.alert(
+          '일정은 저장했어요',
+          '알림 설정만 반영하지 못했어요. 잠시 후 다시 설정해주세요.',
+        );
       }
 
       router.back();
@@ -173,6 +260,9 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
     }
   };
 
+  /**
+   * 삭제
+   */
   const handleDelete = () => {
     if (saving) {
       return;
@@ -191,11 +281,22 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
           setSaving(true);
 
           try {
+            /**
+             * DB 삭제가 primary success
+             */
             await deleteCareScheduleById(schedule.id);
 
             removeScheduleFromStore(schedule.id);
 
-            await cancelCareNotification(schedule.id);
+            /**
+             * 알림 삭제 실패는
+             * DB 일정 삭제를 실패로 취급하지 않는다.
+             */
+            try {
+              await cancelCareNotification(schedule.id);
+            } catch (error) {
+              console.log('DELETE CARE NOTIFICATION ERROR:', error);
+            }
 
             router.back();
           } catch (error) {
@@ -215,6 +316,7 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <AppText variant="heading1">관리 일정</AppText>
 
@@ -260,7 +362,7 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
             <TextInput
               value={dosageText}
               onChangeText={setDosageText}
-              placeholder="예: 1정, 2ml"
+              placeholder="예: 1정, 2ml, 1방울"
               placeholderTextColor={colors.neutral[400]}
               style={styles.input}
             />
@@ -271,19 +373,56 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
         <View style={styles.section}>
           <AppText variant="heading2">반복</AppText>
 
-          <View style={styles.sectionHint}>
+          <View style={styles.repeatInfoRow}>
             <Repeat2 size={18} color={colors.primary[700]} />
 
-            <AppText variant="body2" color="secondary">
-              필요한 주기를 선택해주세요.
+            <AppText
+              variant="body2"
+              color="secondary"
+              style={styles.repeatInfoText}
+            >
+              {isGroupedMedication
+                ? '여러 시간으로 등록된 복약 일정은 반복 주기를 개별 수정할 수 없어요.'
+                : '필요한 주기를 선택해주세요.'}
             </AppText>
           </View>
 
-          <RepeatSelector
-            options={repeatOptions}
-            value={repeatPreset}
-            onChange={setRepeatPreset}
-          />
+          <View
+            pointerEvents={isGroupedMedication ? 'none' : 'auto'}
+            style={
+              isGroupedMedication ? styles.repeatSelectorDisabled : undefined
+            }
+          >
+            <RepeatSelector
+              options={repeatOptions}
+              value={repeatPreset}
+              onChange={handleRepeatChange}
+            />
+          </View>
+
+          {/* 사용자 지정 반복 */}
+          {repeatPreset === 'CUSTOM' && !isGroupedMedication && (
+            <CustomRepeatInput
+              interval={customRepeatInterval}
+              onIntervalChange={setCustomRepeatInterval}
+              unit={customRepeatUnit}
+              onUnitChange={setCustomRepeatUnit}
+            />
+          )}
+
+          {/* 그룹 복약 안내 */}
+          {isGroupedMedication && (
+            <View style={styles.repeatNoticeBox}>
+              <AppText
+                variant="body2"
+                color="secondary"
+                style={styles.repeatNoticeText}
+              >
+                같은 약의 시간별 일정은 하나의 복약 일정으로 관리되고 있어요.
+                반복 주기 변경은 그룹 편집 기능에서 지원할 예정이에요.
+              </AppText>
+            </View>
+          )}
         </View>
 
         {/* 알림 */}
@@ -300,7 +439,7 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
 
         {/* 삭제 */}
         <Pressable
-          style={styles.deleteButton}
+          style={[styles.deleteButton, saving && styles.buttonDisabled]}
           disabled={saving}
           onPress={handleDelete}
         >
@@ -315,7 +454,7 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
       <View style={styles.footer}>
         <PrimaryButton
           label={saving ? '저장 중...' : '변경사항 저장하기'}
-          disabled={saving}
+          disabled={saving || !customRepeatValid}
           onPress={handleSave}
         />
       </View>
@@ -392,10 +531,39 @@ const styles = StyleSheet.create({
     color: colors.neutral[900],
   },
 
-  sectionHint: {
+  repeatSelectorDisabled: {
+    opacity: 0.45,
+  },
+
+  groupEditNotice: {
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: colors.neutral[100],
+  },
+
+  repeatInfoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
+    marginTop: 12,
+  },
+
+  repeatInfoText: {
+    flex: 1,
+    flexShrink: 1,
+    lineHeight: 22,
+  },
+
+  repeatNoticeBox: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: colors.neutral[100],
+  },
+
+  repeatNoticeText: {
+    flexShrink: 1,
+    lineHeight: 22,
   },
 
   deleteButton: {
@@ -411,6 +579,10 @@ const styles = StyleSheet.create({
 
   deleteText: {
     color: colors.error[500],
+  },
+
+  buttonDisabled: {
+    opacity: 0.5,
   },
 
   footer: {

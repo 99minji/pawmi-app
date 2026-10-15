@@ -16,16 +16,15 @@ export function mapCareScheduleFromDb(row: any): CareSchedule {
           }
         : undefined,
 
+    dosageText: row.dosage_text ?? undefined,
     repeatAnchorDay: row.repeat_anchor_day ?? undefined,
 
-    dosageText: row.dosage_text ?? undefined,
+    scheduleGroupId: row.schedule_group_id ?? undefined,
 
     notificationEnabled: row.notification_enabled ?? false,
-
     notificationTime: row.notification_time ?? undefined,
 
     completedAt: row.completed_at ?? undefined,
-
     createdAt: row.created_at,
   };
 }

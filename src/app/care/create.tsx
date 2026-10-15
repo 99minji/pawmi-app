@@ -1,6 +1,6 @@
+import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-
 import {
   Alert,
   Pressable,
@@ -10,68 +10,41 @@ import {
   View,
 } from 'react-native';
 
+import { AiScheduleInput } from '@/components/care/AiScheduleInput';
 import {
-  HeartPulse,
-  Hospital,
-  Pill,
-  ShieldCheck,
-  Sparkles,
-} from 'lucide-react-native';
-
+  CARE_TYPES,
+  CareTypeSelector,
+} from '@/components/care/CareTypeSelector';
+import { CustomRepeatInput } from '@/components/care/CustomRepeatInput';
+import { MedicationNotificationSetting } from '@/components/care/MedicationNotificationSetting';
+import { MedicationTimeList } from '@/components/care/MedicationTimeList';
 import { NotificationSetting } from '@/components/care/NotificationSetting';
 import { AppText } from '@/components/common/AppText';
 import { DateField } from '@/components/common/DateField';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
-
 import { parseCareSchedule } from '@/services/ai';
-import { createCareSchedule } from '@/services/care';
-
+import { createCareSchedules } from '@/services/care';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { usePetStore } from '@/stores/usePetStore';
-
-import type { CareRepeat, CareScheduleType } from '@/types/care';
-
+import type { CareRepeat, CareScheduleType, RepeatUnit } from '@/types/care';
 import {
   getRepeatFromPreset,
   getRepeatOptions,
+  getRepeatPreset,
+  isValidTime,
+  parseCustomRepeat,
   type RepeatPreset,
 } from '@/utils/care';
-
 import { toDateString } from '@/utils/date';
-
 import {
   DEFAULT_NOTIFICATION_TIME,
   requestNotificationPermission,
   scheduleCareNotification,
 } from '@/utils/notification';
 
-const CARE_TYPES: {
-  label: string;
-  value: CareScheduleType;
-}[] = [
-  {
-    label: '심장사상충',
-    value: 'HEARTWORM',
-  },
-  {
-    label: '투약',
-    value: 'MEDICATION',
-  },
-  {
-    label: '예방접종',
-    value: 'VACCINATION',
-  },
-  {
-    label: '정기검진',
-    value: 'CHECKUP',
-  },
-];
-
 export default function CareCreateScreen() {
-  const { type: typeParam } = useLocalSearchParams<{
-    type?: string;
-  }>();
+  const { type: typeParam } = useLocalSearchParams<{ type?: string }>();
 
   const pet = usePetStore((state) => state.pet);
 
@@ -79,44 +52,98 @@ export default function CareCreateScreen() {
     (state) => state.addScheduleFromDb,
   );
 
+  // ─────────────────────────────────────────────
+  // 폼 상태
+  // ─────────────────────────────────────────────
   const [type, setType] = useState<CareScheduleType>(
     () =>
       CARE_TYPES.find((item) => item.value === typeParam)?.value ?? 'HEARTWORM',
   );
-
   const [name, setName] = useState('');
-
   const [dueDate, setDueDate] = useState(new Date());
 
+  // 반복 (프리셋 또는 사용자 지정)
   const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>('NONE');
+  const [customRepeatInterval, setCustomRepeatInterval] = useState('1');
+  const [customRepeatUnit, setCustomRepeatUnit] = useState<RepeatUnit>('DAY');
 
+  // 투약 전용
   const [dosageText, setDosageText] = useState('');
+  const [medicationTimes, setMedicationTimes] = useState([
+    DEFAULT_NOTIFICATION_TIME,
+  ]);
 
+  // 알림 (투약은 medicationTimes 각각이 알림 시간)
   const [notificationEnabled, setNotificationEnabled] = useState(false);
-
   const [notificationTime, setNotificationTime] = useState(
     DEFAULT_NOTIFICATION_TIME,
   );
 
-  /*
-   * AI 자연어 입력
-   */
+  // AI 자연어 입력
   const [aiInput, setAiInput] = useState('');
-
   const [analyzing, setAnalyzing] = useState(false);
 
   const [saving, setSaving] = useState(false);
 
-  const isValid = name.trim().length > 0;
+  // ─────────────────────────────────────────────
+  // 파생 값 / 검증
+  // ─────────────────────────────────────────────
+  const isMedication = type === 'MEDICATION';
 
-  const repeatOptions = getRepeatOptions(type);
+  const repeat: CareRepeat | undefined =
+    repeatPreset === 'CUSTOM'
+      ? parseCustomRepeat(customRepeatInterval, customRepeatUnit)
+      : getRepeatFromPreset(repeatPreset);
+
+  const customRepeatValid = repeatPreset !== 'CUSTOM' || !!repeat;
+
+  const medicationTimesValid =
+    !isMedication ||
+    (medicationTimes.length > 0 && medicationTimes.every(isValidTime));
+
+  const isValid =
+    name.trim().length > 0 && medicationTimesValid && customRepeatValid;
+
+  // ─────────────────────────────────────────────
+  // 폼 변경
+  // ─────────────────────────────────────────────
+  const handleTypeChange = (nextType: CareScheduleType) => {
+    setType(nextType);
+    setRepeatPreset('NONE');
+
+    if (nextType !== 'MEDICATION') {
+      setDosageText('');
+      setMedicationTimes([DEFAULT_NOTIFICATION_TIME]);
+    }
+  };
 
   /**
-   * 자연어 일정 분석
+   * 반복 설정을 폼에 채운다.
    *
-   * LLM 결과를 바로 저장하지 않고
-   * 기존 일정 생성 폼에만 채운다.
+   * 해당 관리 종류의 프리셋에 없는 주기(예: 3일마다)는 사용자 지정으로 채운다.
    */
+  const applyRepeat = (careType: CareScheduleType, value?: CareRepeat) => {
+    const preset = getRepeatPreset(value);
+
+    const isAvailablePreset = getRepeatOptions(careType).some(
+      (option) => option.value === preset && preset !== 'CUSTOM',
+    );
+
+    if (!value || isAvailablePreset) {
+      setRepeatPreset(preset);
+      return;
+    }
+
+    setRepeatPreset('CUSTOM');
+    setCustomRepeatInterval(String(value.interval));
+    setCustomRepeatUnit(value.unit);
+  };
+
+  // ─────────────────────────────────────────────
+  // AI 자연어 일정 분석
+  //
+  // LLM 결과를 바로 저장하지 않고 폼에만 채운다.
+  // ─────────────────────────────────────────────
   const handleAnalyze = async () => {
     const text = aiInput.trim();
 
@@ -136,74 +163,41 @@ export default function CareCreateScreen() {
         timezone,
       });
 
-      /*
-       * 관리 종류
-       */
       setType(result.type);
-
-      /*
-       * 관리 이름
-       */
       setName(result.name ?? '');
-
-      /*
-       * 복용량
-       *
-       * MEDICATION이 아니면
-       * 기존 복용량을 제거한다.
-       */
       setDosageText(
         result.type === 'MEDICATION' ? (result.dosageText ?? '') : '',
       );
 
-      /*
-       * 예정일
-       *
-       * YYYY-MM-DD를 그대로
-       * new Date()에 넣으면 UTC로
-       * 해석될 수 있으므로
-       * local Date로 만든다.
-       */
       if (result.dueDate) {
         setDueDate(parseLocalDate(result.dueDate));
       }
 
-      /*
-       * 반복
-       */
-      setRepeatPreset(getRepeatPresetFromRepeat(result.repeat));
+      applyRepeat(result.type, result.repeat);
 
-      /*
-       * 알림 시간
-       */
       if (result.notificationTime) {
         setNotificationTime(result.notificationTime);
+
+        if (result.type === 'MEDICATION') {
+          setMedicationTimes([result.notificationTime]);
+        }
       }
 
-      /*
-       * 사용자가 시간을 명확하게
-       * 말해서 LLM이 알림 ON으로
-       * 판단한 경우 권한을 확인한다.
-       *
-       * 단순히 state만 true로 만들면
-       * NotificationSetting의
-       * 권한 요청 로직을 우회하게 된다.
-       */
-      if (result.notificationEnabled) {
-        const granted = await requestNotificationPermission();
-
-        if (granted) {
-          setNotificationEnabled(true);
-        } else {
-          setNotificationEnabled(false);
-
-          Alert.alert(
-            '일정은 정리했어요',
-            '알림 권한이 허용되지 않아 알림은 꺼진 상태예요. 필요하면 아래에서 직접 켜주세요.',
-          );
-        }
-      } else {
+      // LLM이 알림 ON으로 판단했더라도 권한 확인을 우회하지 않는다.
+      if (!result.notificationEnabled) {
         setNotificationEnabled(false);
+        return;
+      }
+
+      const granted = await requestNotificationPermission();
+
+      setNotificationEnabled(granted);
+
+      if (!granted) {
+        Alert.alert(
+          '일정은 정리했어요',
+          '알림 권한이 허용되지 않아 알림은 꺼진 상태예요. 필요하면 아래에서 직접 켜주세요.',
+        );
       }
     } catch (error) {
       console.log('PARSE CARE ERROR:', error);
@@ -217,6 +211,12 @@ export default function CareCreateScreen() {
     }
   };
 
+  // ─────────────────────────────────────────────
+  // 저장
+  //
+  // 투약은 시간마다 일정 1개씩 만들고,
+  // 시간이 여러 개면 같은 scheduleGroupId로 묶는다.
+  // ─────────────────────────────────────────────
   const handleSave = async () => {
     if (!pet || !isValid || saving) {
       return;
@@ -225,40 +225,54 @@ export default function CareCreateScreen() {
     setSaving(true);
 
     try {
-      const schedule = await createCareSchedule({
-        petId: pet.id,
+      // 투약 시간: 중복 제거 + 시간순 정렬
+      const times = isMedication
+        ? [...new Set(medicationTimes.map((time) => time.trim()))].sort()
+        : [notificationTime];
 
-        type,
+      const scheduleGroupId =
+        isMedication && times.length > 1 ? randomUUID() : undefined;
 
-        name: name.trim(),
+      const schedules = await createCareSchedules(
+        times.map((time) => ({
+          petId: pet.id,
+          type,
+          name: name.trim(),
+          dueDate: toDateString(dueDate),
+          repeat,
+          dosageText: isMedication ? dosageText.trim() || undefined : undefined,
+          scheduleGroupId,
+          notificationEnabled,
+          // 알림이 꺼져 있어도 시간은 저장한다. (투약은 해당 회차의 시간으로도 사용)
+          notificationTime: time,
+        })),
+      );
 
-        dueDate: toDateString(dueDate),
+      schedules.forEach(addScheduleFromDb);
 
-        repeat: getRepeatFromPreset(repeatPreset),
+      if (notificationEnabled) {
+        const results = await Promise.allSettled(
+          schedules.map((schedule) =>
+            scheduleCareNotification({
+              scheduleId: schedule.id,
+              petName: pet.name,
+              careName: schedule.name,
+              dueDate: schedule.dueDate,
+              notificationTime:
+                schedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
+            }),
+          ),
+        );
+        const hasNotificationFailure = results.some(
+          (result) => result.status === 'rejected',
+        );
 
-        dosageText:
-          type === 'MEDICATION' ? dosageText.trim() || undefined : undefined,
-
-        notificationEnabled,
-
-        notificationTime,
-      });
-
-      addScheduleFromDb(schedule);
-
-      if (schedule.notificationEnabled) {
-        await scheduleCareNotification({
-          scheduleId: schedule.id,
-
-          petName: pet.name,
-
-          careName: schedule.name,
-
-          dueDate: schedule.dueDate,
-
-          notificationTime:
-            schedule.notificationTime ?? DEFAULT_NOTIFICATION_TIME,
-        });
+        if (hasNotificationFailure) {
+          Alert.alert(
+            '일정은 예약했어요',
+            '일부 알림을 설정하지 못했어요. 일정은 정상적으로 저장됐어요.',
+          );
+        }
       }
 
       router.back();
@@ -271,6 +285,9 @@ export default function CareCreateScreen() {
     }
   };
 
+  // ─────────────────────────────────────────────
+  // 렌더링
+  // ─────────────────────────────────────────────
   if (!pet) {
     return null;
   }
@@ -288,90 +305,18 @@ export default function CareCreateScreen() {
           {pet.name}에게 필요한 관리를 미리 등록해두세요.
         </AppText>
 
-        {/* AI 자연어 입력 */}
-        <View style={styles.aiCard}>
-          <View style={styles.aiHeader}>
-            <View style={styles.aiIcon}>
-              <Sparkles size={18} color={colors.primary[700]} />
-            </View>
-
-            <View style={styles.aiTitleArea}>
-              <AppText variant="body1">포우미에게 말해보세요</AppText>
-
-              <AppText
-                variant="body2"
-                color="secondary"
-                style={styles.aiDescription}
-              >
-                평소 말하듯 적으면 일정으로 정리해드려요.
-              </AppText>
-            </View>
-          </View>
-
-          <TextInput
-            value={aiInput}
-            onChangeText={setAiInput}
-            placeholder="예: 매일 저녁 8시에 심장약 1정 먹여야 해"
-            placeholderTextColor={colors.neutral[400]}
-            multiline
-            textAlignVertical="top"
-            editable={!analyzing}
-            style={styles.aiInput}
-          />
-
-          <Pressable
-            disabled={!aiInput.trim() || analyzing}
-            onPress={handleAnalyze}
-            style={({ pressed }) => [
-              styles.aiButton,
-
-              (!aiInput.trim() || analyzing) && styles.aiButtonDisabled,
-
-              pressed && !analyzing && styles.aiButtonPressed,
-            ]}
-          >
-            <Sparkles size={16} color={colors.neutral[0]} />
-
-            <AppText variant="label" color="inverse">
-              {analyzing ? '정리 중...' : '일정으로 정리하기'}
-            </AppText>
-          </Pressable>
-        </View>
+        <AiScheduleInput
+          value={aiInput}
+          onChange={setAiInput}
+          analyzing={analyzing}
+          onAnalyze={handleAnalyze}
+        />
 
         {/* 관리 종류 */}
         <View style={styles.section}>
           <AppText variant="heading2">관리 종류</AppText>
 
-          <View style={styles.typeGrid}>
-            {CARE_TYPES.map((item) => {
-              const selected = type === item.value;
-
-              return (
-                <Pressable
-                  key={item.value}
-                  style={[styles.typeCard, selected && styles.typeCardSelected]}
-                  onPress={() => {
-                    setType(item.value);
-
-                    setRepeatPreset('NONE');
-
-                    if (item.value !== 'MEDICATION') {
-                      setDosageText('');
-                    }
-                  }}
-                >
-                  {renderTypeIcon(item.value)}
-
-                  <AppText
-                    variant="body2"
-                    color={selected ? 'brand' : 'primary'}
-                  >
-                    {item.label}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
+          <CareTypeSelector value={type} onChange={handleTypeChange} />
         </View>
 
         {/* 관리 이름 */}
@@ -381,25 +326,34 @@ export default function CareCreateScreen() {
           <TextInput
             value={name}
             onChangeText={setName}
-            placeholder={getPlaceholder(type)}
+            placeholder={getNamePlaceholder(type)}
             placeholderTextColor={colors.neutral[400]}
             style={styles.input}
           />
         </View>
 
-        {/* 복용량 */}
-        {type === 'MEDICATION' && (
-          <View style={styles.section}>
-            <AppText variant="heading2">복용량</AppText>
+        {/* 복용량 · 투약 시간 */}
+        {isMedication && (
+          <>
+            <View style={styles.section}>
+              <AppText variant="heading2">복용량</AppText>
 
-            <TextInput
-              value={dosageText}
-              onChangeText={setDosageText}
-              placeholder="예: 1정, 2ml"
-              placeholderTextColor={colors.neutral[400]}
-              style={styles.input}
-            />
-          </View>
+              <TextInput
+                value={dosageText}
+                onChangeText={setDosageText}
+                placeholder="예: 1정, 2ml"
+                placeholderTextColor={colors.neutral[400]}
+                style={styles.input}
+              />
+            </View>
+
+            <View style={styles.section}>
+              <MedicationTimeList
+                times={medicationTimes}
+                onChange={setMedicationTimes}
+              />
+            </View>
+          </>
         )}
 
         {/* 예정일 */}
@@ -418,7 +372,7 @@ export default function CareCreateScreen() {
           <AppText variant="heading2">반복</AppText>
 
           <View style={styles.repeatOptions}>
-            {repeatOptions.map((item) => {
+            {getRepeatOptions(type).map((item) => {
               const selected = repeatPreset === item.value;
 
               return (
@@ -442,16 +396,33 @@ export default function CareCreateScreen() {
           </View>
         </View>
 
+        {repeatPreset === 'CUSTOM' && (
+          <CustomRepeatInput
+            interval={customRepeatInterval}
+            onIntervalChange={setCustomRepeatInterval}
+            unit={customRepeatUnit}
+            onUnitChange={setCustomRepeatUnit}
+            style={styles.customRepeat}
+          />
+        )}
+
         {/* 알림 */}
         <View style={styles.section}>
           <AppText variant="heading2">알림</AppText>
 
-          <NotificationSetting
-            enabled={notificationEnabled}
-            onEnabledChange={setNotificationEnabled}
-            time={notificationTime}
-            onTimeChange={setNotificationTime}
-          />
+          {isMedication ? (
+            <MedicationNotificationSetting
+              enabled={notificationEnabled}
+              onEnabledChange={setNotificationEnabled}
+            />
+          ) : (
+            <NotificationSetting
+              enabled={notificationEnabled}
+              onEnabledChange={setNotificationEnabled}
+              time={notificationTime}
+              onTimeChange={setNotificationTime}
+            />
+          )}
         </View>
       </ScrollView>
 
@@ -467,43 +438,9 @@ export default function CareCreateScreen() {
 }
 
 /**
- * LLM에서 받은 repeat을
- * 현재 UI의 RepeatPreset으로 변환한다.
+ * YYYY-MM-DD를 로컬 Date(정오)로 변환한다.
  *
- * 현재 UI에서 지원하는
- * 1일 / 1주 / 1개월 / 1년 반복만
- * 자동 적용한다.
- */
-function getRepeatPresetFromRepeat(repeat?: CareRepeat): RepeatPreset {
-  if (!repeat) {
-    return 'NONE';
-  }
-
-  if (repeat.unit === 'DAY' && repeat.interval === 1) {
-    return 'DAILY';
-  }
-
-  if (repeat.unit === 'WEEK' && repeat.interval === 1) {
-    return 'WEEKLY';
-  }
-
-  if (repeat.unit === 'MONTH' && repeat.interval === 1) {
-    return 'MONTHLY';
-  }
-
-  if (repeat.unit === 'YEAR' && repeat.interval === 1) {
-    return 'YEARLY';
-  }
-
-  return 'NONE';
-}
-
-/**
- * YYYY-MM-DD를 로컬 Date로 변환한다.
- *
- * new Date('2026-10-14') 형태는
- * UTC로 파싱될 가능성이 있으므로
- * 직접 년/월/일을 넣는다.
+ * new Date('2026-10-14')는 UTC로 파싱되어 날짜가 밀릴 수 있다.
  */
 function parseLocalDate(value: string) {
   const [year, month, day] = value.split('-').map(Number);
@@ -511,7 +448,7 @@ function parseLocalDate(value: string) {
   return new Date(year, month - 1, day, 12, 0, 0);
 }
 
-function getPlaceholder(type: CareScheduleType) {
+function getNamePlaceholder(type: CareScheduleType) {
   switch (type) {
     case 'HEARTWORM':
       return '예: 심장사상충 예방약';
@@ -524,27 +461,6 @@ function getPlaceholder(type: CareScheduleType) {
 
     case 'CHECKUP':
       return '예: 정기 건강검진';
-  }
-}
-
-function renderTypeIcon(type: CareScheduleType) {
-  const props = {
-    size: 22,
-    color: colors.primary[700],
-  };
-
-  switch (type) {
-    case 'HEARTWORM':
-      return <HeartPulse {...props} />;
-
-    case 'MEDICATION':
-      return <Pill {...props} />;
-
-    case 'VACCINATION':
-      return <ShieldCheck {...props} />;
-
-    case 'CHECKUP':
-      return <Hospital {...props} />;
   }
 }
 
@@ -565,104 +481,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
 
-  /*
-   * AI
-   */
-  aiCard: {
-    marginBottom: 32,
-    padding: 18,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.primary[200],
-    backgroundColor: colors.primary[50],
-  },
-
-  aiHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-
-  aiIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary[100],
-  },
-
-  aiTitleArea: {
-    flex: 1,
-    marginLeft: 12,
-  },
-
-  aiDescription: {
-    marginTop: 3,
-  },
-
-  aiInput: {
-    minHeight: 96,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    borderWidth: 1,
-    borderColor: colors.primary[200],
-    borderRadius: 14,
-    backgroundColor: colors.neutral[0],
-    fontFamily: 'Pretendard-Regular',
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.neutral[900],
-  },
-
-  aiButton: {
-    minHeight: 46,
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    borderRadius: 12,
-    backgroundColor: colors.primary[600],
-  },
-
-  aiButtonDisabled: {
-    opacity: 0.45,
-  },
-
-  aiButtonPressed: {
-    opacity: 0.8,
-  },
-
-  /*
-   * 기존 form
-   */
   section: {
     marginBottom: 32,
     gap: 12,
-  },
-
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-
-  typeCard: {
-    width: '48%',
-    minHeight: 92,
-    padding: 16,
-    gap: 10,
-    justifyContent: 'center',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
-  },
-
-  typeCardSelected: {
-    borderColor: colors.primary[600],
-    backgroundColor: colors.primary[50],
   },
 
   input: {
@@ -696,6 +517,10 @@ const styles = StyleSheet.create({
   repeatChipSelected: {
     borderColor: colors.primary[600],
     backgroundColor: colors.primary[600],
+  },
+
+  customRepeat: {
+    marginTop: 4,
   },
 
   footer: {
