@@ -1,10 +1,17 @@
 import { useCareNotificationObserver } from '@/hooks/useCareNotificationObserver';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
+import * as Sentry from '@sentry/react-native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  sendDefaultPii: false,
+  enableLogs: false,
+});
 
 SplashScreen.preventAutoHideAsync();
 
