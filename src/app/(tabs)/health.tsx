@@ -1,5 +1,5 @@
 import { HeartPulse } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
@@ -10,24 +10,43 @@ import {
 } from '@/components/health/RecordFilterChips';
 import { WeightSummaryCard } from '@/components/health/WeightSummaryCard';
 import { colors } from '@/constants/colors';
+import { useTodayDateString } from '@/hooks/useTodayDateString';
+import { explainHealthSummary } from '@/services/ai';
+import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { usePetStore } from '@/stores/usePetStore';
+import { HealthSummaryExplanation } from '@/types/ai';
 import {
   HEALTH_RECORD_TYPE_LABELS,
   isWeightRecord,
   sortByLatest,
 } from '@/utils/health';
+import { buildPetHealthSummary } from '@/utils/healthSummary';
+
+type ExplanationState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | {
+      status: 'success';
+      data: HealthSummaryExplanation;
+    }
+  | { status: 'error' };
 
 export default function HealthScreen() {
   const pet = usePetStore((state) => state.pet);
 
   const allRecords = useHealthStore((state) => state.records);
 
+  const schedules = useCareScheduleStore((state) => state.schedules);
+
   const [filter, setFilter] = useState<RecordFilter>('ALL');
 
-  /**
-   * 현재 반려동물의 기록 (최신순)
-   */
+  const [explanationState, setExplanationState] = useState<ExplanationState>({
+    status: 'idle',
+  });
+
+  const todayDateString = useTodayDateString();
+
   const petRecords = useMemo(
     () => sortByLatest(allRecords.filter((record) => record.petId === pet?.id)),
     [allRecords, pet?.id],
@@ -41,13 +60,74 @@ export default function HealthScreen() {
     [petRecords, filter],
   );
 
-  /**
-   * 체중 기록 (오래된순, 차트용)
-   */
   const weightRecords = useMemo(
     () => petRecords.filter(isWeightRecord).reverse(),
     [petRecords],
   );
+
+  const summary = useMemo(() => {
+    if (!pet) {
+      return null;
+    }
+
+    return buildPetHealthSummary({
+      records: petRecords,
+      schedules,
+      petId: pet.id,
+      today: todayDateString,
+    });
+  }, [petRecords, schedules, pet, todayDateString]);
+
+  useEffect(() => {
+    if (!summary || !pet) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadExplanation = async () => {
+      // async 함수 내부이므로 effect 본문에서
+      // 직접 setState 하는 패턴을 피할 수 있음
+      await Promise.resolve();
+
+      if (cancelled) {
+        return;
+      }
+
+      setExplanationState({
+        status: 'loading',
+      });
+
+      try {
+        const result = await explainHealthSummary(summary, pet.name);
+
+        if (cancelled) {
+          return;
+        }
+
+        setExplanationState({
+          status: 'success',
+          data: result,
+        });
+      } catch (error) {
+        console.log('EXPLAIN HEALTH SUMMARY ERROR:', error);
+
+        if (cancelled) {
+          return;
+        }
+
+        setExplanationState({
+          status: 'error',
+        });
+      }
+    };
+
+    loadExplanation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [summary, pet]);
 
   if (!pet) {
     return (
@@ -72,6 +152,26 @@ export default function HealthScreen() {
           {pet.name}의 건강 변화를 기록으로 확인해보세요.
         </AppText>
       </View>
+
+      {explanationState.status === 'loading' ? (
+        <View style={styles.summaryCard}>
+          <AppText variant="body2" color="secondary">
+            최근 건강 기록을 정리하고 있어요...
+          </AppText>
+        </View>
+      ) : explanationState.status === 'success' ? (
+        <View style={styles.summaryCard}>
+          <AppText variant="heading2">{explanationState.data.headline}</AppText>
+
+          <View style={styles.summaryList}>
+            {explanationState.data.items.map((item) => (
+              <AppText key={item} variant="body2" color="secondary">
+                • {item}
+              </AppText>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       <WeightSummaryCard records={weightRecords} />
 
@@ -122,6 +222,20 @@ const styles = StyleSheet.create({
 
   description: {
     marginTop: 8,
+  },
+
+  summaryCard: {
+    marginBottom: 24,
+    padding: 18,
+    borderRadius: 20,
+    backgroundColor: colors.neutral[0],
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+
+  summaryList: {
+    marginTop: 12,
+    gap: 8,
   },
 
   emptyContainer: {

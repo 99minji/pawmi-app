@@ -1,6 +1,11 @@
 import { supabase } from '@/lib/supabase';
 
-import type { ParsedCareSchedule, ParsedHealthRecord } from '@/types/ai';
+import type {
+  HealthSummaryExplanation,
+  ParsedCareSchedule,
+  ParsedHealthRecord,
+  PetHealthSummary,
+} from '@/types/ai';
 
 type ParseCareScheduleInput = {
   text: string;
@@ -52,4 +57,29 @@ export async function parseHealthRecord(
   }
 
   return data.result as ParsedHealthRecord;
+}
+
+export async function explainHealthSummary(
+  summary: PetHealthSummary,
+  petName?: string,
+): Promise<HealthSummaryExplanation> {
+  const { data, error } = await supabase.functions.invoke(
+    'explain-health-summary',
+    {
+      body: {
+        summary,
+        petName,
+      },
+    },
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data?.result) {
+    throw new Error('건강 기록 설명을 만들지 못했어요.');
+  }
+
+  return data.result as HealthSummaryExplanation;
 }
