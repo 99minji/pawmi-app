@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { HeartPulse, Home, PawPrint } from 'lucide-react-native';
+import { HeartPulse, Home, LayoutGrid } from 'lucide-react-native';
 
 import { colors } from '@/constants/colors';
 
@@ -44,11 +44,11 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
-        name="pet"
+        name="menu"
         options={{
-          title: '반려동물',
+          title: '전체 메뉴',
           tabBarIcon: ({ color, size }) => (
-            <PawPrint color={color} size={size} strokeWidth={2} />
+            <LayoutGrid color={color} size={size} strokeWidth={2} />
           ),
         }}
       />

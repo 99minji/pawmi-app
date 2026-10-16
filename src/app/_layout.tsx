@@ -64,8 +64,10 @@ function RootNavigator() {
       <Stack.Protected guard={isLoggedIn}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="care/index" />
         <Stack.Screen name="care/create" />
         <Stack.Screen name="care/[id]" />
+        <Stack.Screen name="pet/index" />
         <Stack.Screen name="pet/edit" />
         <Stack.Screen name="record/[id]" />
         <Stack.Screen name="record/medication" />
