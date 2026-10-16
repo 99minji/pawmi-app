@@ -229,7 +229,7 @@ export const QuickRecordSheet = forwardRef<BottomSheet, object>(
 
 const styles = StyleSheet.create({
   sheet: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
     borderRadius: 24,
   },
 
@@ -256,9 +256,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 14,
-    backgroundColor: colors.neutral[50],
+    borderColor: colors.border.input,
+    borderRadius: 16,
+    backgroundColor: colors.background.primary,
     fontFamily: 'Pretendard-Regular',
     fontSize: 16,
     color: colors.neutral[900],
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderRadius: 16,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   icon: {

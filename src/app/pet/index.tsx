@@ -4,6 +4,7 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
 import { getPetAvatar } from '@/constants/petAvatars';
 import { usePetStore } from '@/stores/usePetStore';
 import { formatBreed, formatGender, formatPetAge } from '@/utils/pet';
@@ -47,7 +48,7 @@ export default function PetScreen() {
           style={styles.editButton}
           onPress={() => router.push('/pet/edit')}
         >
-          <Pencil size={18} color={colors.primary[700]} />
+          <Pencil size={18} color={colors.primary[600]} />
         </Pressable>
       </View>
 
@@ -109,7 +110,7 @@ function Divider() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -122,7 +123,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   header: {
@@ -151,14 +152,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
+    ...shadows.soft,
   },
 
   hero: {
     position: 'relative',
     alignItems: 'center',
     overflow: 'hidden',
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.accent.sageLight,
     borderRadius: 28,
     paddingTop: 12,
     paddingBottom: 24,
@@ -176,7 +178,7 @@ const styles = StyleSheet.create({
     width: 170,
     height: 170,
     borderRadius: 85,
-    backgroundColor: colors.primary[100],
+    backgroundColor: colors.accent.peachLight,
   },
 
   petName: {
@@ -192,11 +194,10 @@ const styles = StyleSheet.create({
   },
 
   infoCard: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    backgroundColor: colors.surface.card,
+    borderRadius: 24,
     paddingHorizontal: 16,
+    ...shadows.card,
   },
 
   infoRow: {
@@ -208,6 +209,6 @@ const styles = StyleSheet.create({
 
   divider: {
     height: 1,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.border.soft,
   },
 });

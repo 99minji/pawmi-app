@@ -329,7 +329,7 @@ export default function VaccinationRecordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   scroll: {
@@ -366,11 +366,11 @@ const styles = StyleSheet.create({
     height: 56,
 
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.border.input,
 
-    borderRadius: 14,
+    borderRadius: 16,
 
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
 
     paddingHorizontal: 16,
 
@@ -391,11 +391,11 @@ const styles = StyleSheet.create({
     height: 56,
 
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.border.input,
 
-    borderRadius: 14,
+    borderRadius: 16,
 
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
 
     paddingHorizontal: 16,
 
@@ -413,8 +413,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    backgroundColor: colors.surface.card,
   },
 
   repeatOptionSelected: {

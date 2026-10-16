@@ -29,13 +29,13 @@ type Props = TextProps & {
 };
 
 const textColors: Record<TextColor, string> = {
-  primary: colors.neutral[900],
+  primary: colors.neutral[800],
   secondary: colors.neutral[600],
   tertiary: colors.neutral[500],
   brand: colors.primary[600],
   inverse: colors.neutral[0],
   error: colors.error[500],
-  warning: colors.warning[500],
+  warning: colors.warning[700],
   success: colors.success[500],
 };
 

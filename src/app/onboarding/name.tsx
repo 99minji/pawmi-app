@@ -44,9 +44,9 @@ const styles = StyleSheet.create({
   input: {
     height: 56,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 14,
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    borderRadius: 16,
+    backgroundColor: colors.surface.card,
     paddingHorizontal: 16,
     fontFamily: 'Pretendard-Regular',
     fontSize: 17,

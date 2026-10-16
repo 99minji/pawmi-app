@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
     height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
+    borderRadius: 18,
     backgroundColor: colors.primary[600],
   },
 
@@ -42,5 +42,6 @@ const styles = StyleSheet.create({
 
   disabled: {
     backgroundColor: colors.primary[200],
+    opacity: 0.9,
   },
 });

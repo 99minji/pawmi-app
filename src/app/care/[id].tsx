@@ -465,7 +465,7 @@ function CareDetailForm({ schedule }: { schedule: CareSchedule }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   description: {
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   summaryIcon: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary[100],
@@ -522,10 +522,10 @@ const styles = StyleSheet.create({
     minHeight: 56,
     justifyContent: 'center',
     paddingHorizontal: 16,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    backgroundColor: colors.surface.card,
     fontFamily: 'Pretendard-Regular',
     fontSize: 16,
     color: colors.neutral[900],
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginTop: 8,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: colors.error[50],
   },
 
@@ -588,6 +588,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 20,
     paddingBottom: 24,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 });

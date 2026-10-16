@@ -16,6 +16,7 @@ import {
 import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
 import {
   AVATAR_BREED_LABELS,
   AVATAR_BREED_OPTIONS,
@@ -248,7 +249,7 @@ function PetEditForm({ pet }: { pet: Pet }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -286,9 +287,9 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 56,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 14,
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    borderRadius: 16,
+    backgroundColor: colors.surface.card,
     paddingHorizontal: 16,
     justifyContent: 'center',
 
@@ -307,10 +308,10 @@ const styles = StyleSheet.create({
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    backgroundColor: colors.surface.card,
   },
 
   optionSelected: {
@@ -329,10 +330,11 @@ const styles = StyleSheet.create({
     minHeight: 150,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.soft,
+    backgroundColor: colors.surface.card,
+    ...shadows.soft,
   },
 
   avatarOptionImage: {

@@ -291,7 +291,7 @@ function Field({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -321,10 +321,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
 
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 14,
+    borderColor: colors.border.input,
+    borderRadius: 16,
 
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
 
     fontFamily: 'Pretendard-Regular',
     fontSize: 16,
@@ -341,6 +341,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 24,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 });

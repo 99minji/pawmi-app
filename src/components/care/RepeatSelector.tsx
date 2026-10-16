@@ -44,8 +44,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    backgroundColor: colors.surface.card,
   },
 
   optionSelected: {

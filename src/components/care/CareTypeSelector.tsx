@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/common/AppText';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
 import type { CareScheduleType } from '@/types/care';
 
 export const CARE_TYPES: { label: string; value: CareScheduleType }[] = [
@@ -75,10 +76,11 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 10,
     justifyContent: 'center',
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.soft,
+    backgroundColor: colors.surface.card,
+    ...shadows.soft,
   },
 
   cardSelected: {

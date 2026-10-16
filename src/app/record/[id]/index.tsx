@@ -5,6 +5,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/common/AppText';
 import { HealthRecordIcon } from '@/components/health/HealthRecordIcon';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
 import { deleteHealthRecordById } from '@/services/health';
 import { useHealthStore } from '@/stores/useHealthStore';
 import type { HealthRecord } from '@/types/health';
@@ -182,7 +183,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -211,10 +212,9 @@ const styles = StyleSheet.create({
   card: {
     marginTop: 28,
     padding: 18,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderRadius: 24,
+    backgroundColor: colors.surface.card,
+    ...shadows.card,
   },
 
   detailRow: {
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 16,
     borderRadius: 16,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
   },
 
   editButton: {
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: colors.primary[50],
   },
 
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: colors.error[50],
   },
 
@@ -259,6 +259,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 });

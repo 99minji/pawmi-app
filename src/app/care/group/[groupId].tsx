@@ -607,14 +607,14 @@ function formatDate(dateString: string) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: colors.primary[100],
   },
 
@@ -664,9 +664,9 @@ const styles = StyleSheet.create({
     minHeight: 56,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 14,
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    borderRadius: 16,
+    backgroundColor: colors.surface.card,
     fontFamily: 'Pretendard-Regular',
     fontSize: 16,
     color: colors.neutral[900],
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: colors.error[50],
   },
 
@@ -731,6 +731,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 20,
     paddingBottom: 24,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 });

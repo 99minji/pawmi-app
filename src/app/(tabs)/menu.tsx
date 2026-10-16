@@ -25,7 +25,9 @@ import {
 
 import { AppText } from '@/components/common/AppText';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
 import { getPetAvatar } from '@/constants/petAvatars';
+import { tones } from '@/constants/tones';
 import { supabase } from '@/lib/supabase';
 import { deleteAccount } from '@/services/auth';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
@@ -132,7 +134,7 @@ function PetProfileCard({ pet }: { pet: Pet }) {
       </View>
 
       <View style={styles.profileChevron}>
-        <ChevronRight size={20} color={colors.primary[700]} />
+        <ChevronRight size={20} color={colors.primary[600]} />
       </View>
     </Pressable>
   );
@@ -265,7 +267,8 @@ export default function MenuScreen() {
 
         <View style={styles.card}>
           <MenuItem
-            icon={<HeartPulse size={22} color={colors.primary[600]} />}
+            icon={<HeartPulse size={22} color={tones.rose.icon} />}
+            iconStyle={{ backgroundColor: tones.rose.background }}
             title="건강 기록"
             description="체중, 증상, 투약, 접종, 진료 기록"
             onPress={() => {
@@ -276,7 +279,7 @@ export default function MenuScreen() {
           <View style={styles.divider} />
 
           <MenuItem
-            icon={<ClipboardList size={22} color={colors.primary[600]} />}
+            icon={<ClipboardList size={22} color={tones.mint.icon} />}
             title="예정된 관리"
             description="투약, 예방접종, 검진 일정을 관리해요"
             onPress={() => {
@@ -390,7 +393,7 @@ export default function MenuScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -410,10 +413,10 @@ const styles = StyleSheet.create({
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    marginBottom: 28,
-    borderRadius: 24,
-    backgroundColor: colors.primary[50],
+    padding: 18,
+    marginBottom: 32,
+    borderRadius: 28,
+    backgroundColor: colors.accent.sageLight,
   },
 
   profileAvatar: {
@@ -422,7 +425,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 32,
-    backgroundColor: colors.primary[100],
+    backgroundColor: colors.accent.peachLight,
   },
 
   profileAvatarImage: {
@@ -445,7 +448,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 18,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
+    ...shadows.soft,
   },
 
   section: {
@@ -458,11 +462,9 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    overflow: 'hidden',
-    borderRadius: 20,
-    backgroundColor: colors.neutral[0],
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderRadius: 24,
+    backgroundColor: colors.surface.card,
+    ...shadows.card,
   },
 
   menuItem: {
@@ -482,8 +484,8 @@ const styles = StyleSheet.create({
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    backgroundColor: colors.primary[50],
+    borderRadius: 16,
+    backgroundColor: tones.mint.background,
   },
 
   menuIconNeutral: {
@@ -515,6 +517,6 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     marginLeft: 72,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.border.soft,
   },
 });

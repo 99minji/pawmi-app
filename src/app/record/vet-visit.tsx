@@ -192,7 +192,7 @@ function parseLocalDate(value: string) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   scroll: {
@@ -229,11 +229,11 @@ const styles = StyleSheet.create({
     minHeight: 56,
 
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.border.input,
 
-    borderRadius: 14,
+    borderRadius: 16,
 
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
 
     paddingHorizontal: 16,
 

@@ -29,7 +29,7 @@ export function SettingCard({
       <View style={styles.left}>
         {Icon && (
           <View style={styles.icon}>
-            <Icon size={19} color={colors.primary[700]} />
+            <Icon size={19} color={colors.primary[600]} />
           </View>
         )}
 
@@ -71,10 +71,10 @@ const styles = StyleSheet.create({
   icon: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[100],
+    backgroundColor: colors.surface.mint,
   },
 
   text: {

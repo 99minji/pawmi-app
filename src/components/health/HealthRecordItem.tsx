@@ -4,6 +4,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/common/AppText';
 import { HealthRecordIcon } from '@/components/health/HealthRecordIcon';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
+import { getRecordTone } from '@/constants/tones';
 import type { HealthRecord } from '@/types/health';
 import { getRecordDescription } from '@/utils/health';
 
@@ -14,7 +16,12 @@ export function HealthRecordItem({ record }: { record: HealthRecord }) {
   return (
     <View style={styles.item}>
       <View style={styles.left}>
-        <View style={styles.iconCircle}>
+        <View
+          style={[
+            styles.iconCircle,
+            { backgroundColor: getRecordTone(record.type).background },
+          ]}
+        >
           <HealthRecordIcon type={record.type} />
         </View>
 
@@ -63,24 +70,23 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[100],
   },
 
   line: {
-    width: 2,
+    width: 1.5,
     flex: 1,
     minHeight: 50,
-    backgroundColor: colors.neutral[200],
+    marginVertical: 6,
+    backgroundColor: colors.border.input,
   },
 
   card: {
     flex: 1,
     marginBottom: 16,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    padding: 18,
+    borderRadius: 20,
+    backgroundColor: colors.surface.card,
+    ...shadows.soft,
   },
 
   header: {

@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
 
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -195,12 +195,12 @@ const styles = StyleSheet.create({
 
     paddingHorizontal: 16,
 
-    borderRadius: 14,
+    borderRadius: 16,
 
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.border.input,
 
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
 
     fontFamily: 'Pretendard-Regular',
 

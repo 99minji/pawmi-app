@@ -62,9 +62,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.border.input,
     borderRadius: 16,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
   },
 
   text: {

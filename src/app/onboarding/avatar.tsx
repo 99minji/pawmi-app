@@ -6,6 +6,7 @@ import { AppText } from '@/components/common/AppText';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
 import {
   AVATAR_BREED_LABELS,
   AVATAR_BREED_OPTIONS,
@@ -144,10 +145,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 18,
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.soft,
+    borderRadius: 20,
+    backgroundColor: colors.surface.card,
     padding: 12,
+    ...shadows.soft,
   },
 
   selected: {

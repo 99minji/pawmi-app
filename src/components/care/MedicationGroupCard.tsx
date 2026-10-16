@@ -8,6 +8,8 @@ import {
 import { ScheduleTypeIcon } from '@/components/care/ScheduleTypeIcon';
 import { AppText } from '@/components/common/AppText';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
+import { getScheduleTone } from '@/constants/tones';
 import type { CareSchedule } from '@/types/care';
 
 type MedicationGroupCardProps = {
@@ -118,10 +120,11 @@ export function MedicationGroupCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
+    backgroundColor: colors.surface.card,
+    borderRadius: 22,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
+    ...shadows.card,
   },
 
   header: {
@@ -130,17 +133,17 @@ const styles = StyleSheet.create({
   },
 
   icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[100],
+    backgroundColor: getScheduleTone('MEDICATION').background,
   },
 
   title: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 14,
   },
 
   subText: {
@@ -149,7 +152,7 @@ const styles = StyleSheet.create({
 
   timeList: {
     marginTop: 12,
-    marginLeft: 52,
+    marginLeft: 58,
     gap: 4,
   },
 
@@ -174,8 +177,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.neutral[300],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    backgroundColor: colors.surface.card,
   },
 
   timeStatusDone: {
@@ -187,7 +190,7 @@ const styles = StyleSheet.create({
     minWidth: 52,
     height: 32,
     paddingHorizontal: 10,
-    borderRadius: 9,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary[600],

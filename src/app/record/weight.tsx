@@ -153,7 +153,7 @@ export default function WeightRecordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -177,9 +177,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 64,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 14,
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    borderRadius: 16,
+    backgroundColor: colors.surface.card,
     paddingHorizontal: 16,
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 24,

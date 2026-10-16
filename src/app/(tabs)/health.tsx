@@ -10,6 +10,7 @@ import {
 } from '@/components/health/RecordFilterChips';
 import { WeightSummaryCard } from '@/components/health/WeightSummaryCard';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
 import { useTodayDateString } from '@/hooks/useTodayDateString';
 import { explainHealthSummary } from '@/services/ai';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
@@ -207,7 +208,7 @@ export default function HealthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -227,10 +228,9 @@ const styles = StyleSheet.create({
   summaryCard: {
     marginBottom: 24,
     padding: 18,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[0],
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderRadius: 24,
+    backgroundColor: colors.surface.card,
+    ...shadows.card,
   },
 
   summaryList: {
@@ -242,14 +242,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   emptyCard: {
     alignItems: 'center',
     padding: 28,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[0],
+    borderRadius: 24,
+    backgroundColor: colors.surface.card,
+    ...shadows.soft,
   },
 
   emptyTitle: {

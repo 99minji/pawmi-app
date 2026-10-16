@@ -196,8 +196,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    backgroundColor: colors.surface.card,
   },
 
   modeButtonSelected: {
@@ -210,9 +210,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 14,
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    borderRadius: 16,
+    backgroundColor: colors.surface.card,
   },
 
   pickerWrapper: {
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   ageBox: {
     padding: 24,
     borderRadius: 16,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
     alignItems: 'center',
   },
 

@@ -7,7 +7,7 @@ import {
   ShieldCheck,
 } from 'lucide-react-native';
 
-import { colors } from '@/constants/colors';
+import { getRecordTone } from '@/constants/tones';
 import type { HealthRecordType } from '@/types/health';
 
 const ICONS: Record<HealthRecordType, LucideIcon> = {
@@ -26,5 +26,5 @@ type Props = {
 export function HealthRecordIcon({ type, size = 18 }: Props) {
   const Icon = ICONS[type];
 
-  return <Icon size={size} color={colors.primary[700]} />;
+  return <Icon size={size} color={getRecordTone(type).icon} />;
 }

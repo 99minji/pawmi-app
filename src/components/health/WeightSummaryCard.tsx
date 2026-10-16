@@ -75,12 +75,12 @@ const styles = StyleSheet.create({
   card: {
     minHeight: 150,
     marginBottom: 24,
-    padding: 18,
+    padding: 20,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    borderRadius: 20,
-    backgroundColor: colors.primary[50],
+    borderRadius: 24,
+    backgroundColor: colors.accent.yellowLight,
   },
 
   value: {
@@ -98,6 +98,7 @@ const styles = StyleSheet.create({
   chartBar: {
     width: 8,
     borderRadius: 4,
-    backgroundColor: colors.primary[500],
+    backgroundColor: colors.accent.yellowDeep,
+    opacity: 0.55,
   },
 });

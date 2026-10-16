@@ -8,6 +8,8 @@ import {
 import { ScheduleTypeIcon } from '@/components/care/ScheduleTypeIcon';
 import { AppText } from '@/components/common/AppText';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
+import { getScheduleTone } from '@/constants/tones';
 import type { CareSchedule } from '@/types/care';
 
 type TodayTaskCardProps = {
@@ -36,7 +38,12 @@ export function TodayTaskCard({
 
   return (
     <View style={styles.card} onLayout={onLayout}>
-      <View style={styles.icon}>
+      <View
+        style={[
+          styles.icon,
+          { backgroundColor: getScheduleTone(schedule.type).background },
+        ]}
+      >
         <ScheduleTypeIcon type={schedule.type} />
       </View>
 
@@ -94,23 +101,23 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
+    backgroundColor: colors.surface.card,
+    borderRadius: 22,
     padding: 16,
+    ...shadows.card,
   },
 
   icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[100],
   },
 
   content: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 14,
   },
 
   subText: {
@@ -118,9 +125,9 @@ const styles = StyleSheet.create({
   },
 
   completeButton: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 9,
-    borderRadius: 10,
+    borderRadius: 999,
     backgroundColor: colors.primary[600],
   },
 

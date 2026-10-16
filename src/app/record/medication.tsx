@@ -15,6 +15,7 @@ import { AppText } from '@/components/common/AppText';
 import { DateField } from '@/components/common/DateField';
 import { PrimaryButton } from '@/components/common/PrimaryButton';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
 import { createMedicationRecord } from '@/services/health';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
@@ -299,7 +300,7 @@ function parseLocalDate(value: string) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   scroll: {
@@ -345,11 +346,11 @@ const styles = StyleSheet.create({
     height: 56,
 
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.border.input,
 
-    borderRadius: 14,
+    borderRadius: 16,
 
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface.card,
 
     paddingHorizontal: 16,
 
@@ -381,10 +382,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 14,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.soft,
+    backgroundColor: colors.surface.card,
+    ...shadows.soft,
   },
 
   medicationCardSelected: {

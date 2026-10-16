@@ -10,6 +10,7 @@ import { AppText } from '@/components/common/AppText';
 import { AnimatedPetAvatar } from '@/components/pet/AnimatedPetAvatar';
 import { QuickRecordSheet } from '@/components/record/QuickRecordSheet';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
 import { getPetAvatar, restSleepSource } from '@/constants/petAvatars';
 import { useIsNightTime } from '@/hooks/useIsNightTime';
 import { useTodayDateString } from '@/hooks/useTodayDateString';
@@ -461,7 +462,7 @@ export default function TodayScreen() {
               style={styles.profileButton}
               onPress={() => router.push('/pet/edit')}
             >
-              <ChevronRight size={20} color={colors.primary[700]} />
+              <ChevronRight size={20} color={colors.primary[600]} />
             </Pressable>
           </View>
         </View>
@@ -589,7 +590,7 @@ export default function TodayScreen() {
           onPress={openQuickRecordSheet}
         >
           <View style={styles.quickRecordIcon}>
-            <Plus size={22} color={colors.primary[700]} />
+            <Plus size={22} color={colors.accent.peachDeep} />
           </View>
 
           <View style={styles.quickRecordContent}>
@@ -620,14 +621,14 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -637,12 +638,12 @@ const styles = StyleSheet.create({
   },
 
   hero: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.accent.sageLight,
     borderRadius: 28,
-    paddingTop: 20,
+    paddingTop: 24,
     paddingHorizontal: 20,
-    paddingBottom: 18,
-    marginBottom: 32,
+    paddingBottom: 20,
+    marginBottom: 36,
     overflow: 'hidden',
   },
 
@@ -670,20 +671,21 @@ const styles = StyleSheet.create({
 
   avatarGlow: {
     position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: colors.primary[100],
+    width: 188,
+    height: 188,
+    borderRadius: 94,
+    backgroundColor: colors.accent.peachLight,
   },
 
   petSummary: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.neutral[0],
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: colors.surface.card,
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    ...shadows.soft,
   },
 
   petSummaryText: {
@@ -696,7 +698,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.surface.mint,
   },
 
   petDescription: {
@@ -704,13 +706,13 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    marginBottom: 12,
+    marginBottom: 14,
     marginTop: 4,
   },
 
   taskList: {
-    gap: 10,
-    marginBottom: 28,
+    gap: 12,
+    marginBottom: 32,
   },
 
   taskDescription: {
@@ -718,19 +720,18 @@ const styles = StyleSheet.create({
   },
 
   emptyTaskCard: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 28,
+    backgroundColor: colors.surface.card,
+    borderRadius: 22,
+    padding: 20,
+    marginBottom: 32,
+    ...shadows.soft,
   },
 
   careSuggestionCard: {
-    marginBottom: 28,
-    padding: 18,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.primary[200],
-    backgroundColor: colors.primary[50],
+    marginBottom: 32,
+    padding: 20,
+    borderRadius: 24,
+    backgroundColor: colors.surface.mint,
   },
 
   careSuggestionTitle: {
@@ -746,26 +747,27 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: colors.primary[100],
+    borderRadius: 999,
+    backgroundColor: colors.surface.card,
   },
 
   quickRecordButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: colors.neutral[0],
+    padding: 18,
+    borderRadius: 24,
+    backgroundColor: colors.surface.card,
     marginBottom: 28,
+    ...shadows.card,
   },
 
   quickRecordIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[100],
+    backgroundColor: colors.accent.peachLight,
   },
 
   quickRecordContent: {

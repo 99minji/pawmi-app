@@ -11,6 +11,8 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ScheduleTypeIcon } from '@/components/care/ScheduleTypeIcon';
 import { AppText } from '@/components/common/AppText';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/theme';
+import { getScheduleTone, tones } from '@/constants/tones';
 import { useTodayDateString } from '@/hooks/useTodayDateString';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { usePetStore } from '@/stores/usePetStore';
@@ -106,7 +108,7 @@ export default function CareListScreen() {
           onPress={openCareCreate}
           hitSlop={8}
         >
-          <Plus size={16} color={colors.primary[700]} />
+          <Plus size={16} color={colors.primary[600]} />
 
           <AppText variant="label" color="brand">
             일정 추가
@@ -137,7 +139,7 @@ export default function CareListScreen() {
       ) : (
         <Pressable style={styles.emptyScheduleCard} onPress={openCareCreate}>
           <View style={styles.emptyScheduleIcon}>
-            <CalendarDays size={22} color={colors.primary[700]} />
+            <CalendarDays size={22} color={tones.mint.icon} />
           </View>
 
           <View style={styles.emptyText}>
@@ -214,9 +216,19 @@ function ScheduleRow({
       onPress={onPress}
     >
       <View
-        style={[styles.scheduleIcon, isCompleted && styles.scheduleIconDone]}
+        style={[
+          styles.scheduleIcon,
+          {
+            backgroundColor: isCompleted
+              ? tones.neutral.background
+              : getScheduleTone(baseSchedule.type).background,
+          },
+        ]}
       >
-        <ScheduleTypeIcon type={baseSchedule.type} />
+        <ScheduleTypeIcon
+          type={baseSchedule.type}
+          color={isCompleted ? tones.neutral.icon : undefined}
+        />
       </View>
 
       <View style={styles.scheduleContent}>
@@ -288,7 +300,7 @@ function formatRepeat(repeat: CareRepeat) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
 
   content: {
@@ -328,7 +340,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.surface.mint,
   },
 
   sectionTitle: {
@@ -344,11 +356,10 @@ const styles = StyleSheet.create({
     minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    backgroundColor: colors.surface.card,
+    borderRadius: 22,
     padding: 14,
+    ...shadows.card,
   },
 
   pressed: {
@@ -358,14 +369,9 @@ const styles = StyleSheet.create({
   scheduleIcon: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[100],
-  },
-
-  scheduleIconDone: {
-    backgroundColor: colors.neutral[100],
   },
 
   scheduleContent: {
@@ -413,21 +419,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    backgroundColor: colors.surface.card,
+    borderRadius: 22,
     padding: 16,
     marginBottom: 32,
+    ...shadows.card,
   },
 
   emptyScheduleIcon: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[100],
+    backgroundColor: tones.mint.background,
   },
 
   emptyText: {

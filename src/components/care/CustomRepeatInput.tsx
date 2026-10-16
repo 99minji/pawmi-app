@@ -91,10 +91,10 @@ const styles = StyleSheet.create({
   box: {
     padding: 14,
     gap: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    backgroundColor: colors.surface.card,
   },
 
   row: {
@@ -109,8 +109,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[50],
+    borderColor: colors.border.input,
+    backgroundColor: colors.background.primary,
     fontFamily: 'Pretendard-Regular',
     fontSize: 16,
     color: colors.neutral[900],
@@ -133,8 +133,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
+    borderColor: colors.border.input,
+    backgroundColor: colors.surface.card,
   },
 
   unitSelected: {
