@@ -10,6 +10,7 @@ import {
   Sparkles,
   Stethoscope,
   Users,
+  UserX,
 } from 'lucide-react-native';
 import {
   Alert,
@@ -26,6 +27,7 @@ import { AppText } from '@/components/common/AppText';
 import { colors } from '@/constants/colors';
 import { getPetAvatar } from '@/constants/petAvatars';
 import { supabase } from '@/lib/supabase';
+import { deleteAccount } from '@/services/auth';
 import { useCareScheduleStore } from '@/stores/useCareScheduleStore';
 import { useHealthStore } from '@/stores/useHealthStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
@@ -180,6 +182,66 @@ export default function MenuScreen() {
     ]);
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccount();
+
+      // 서버에서 계정 삭제 성공 후 로컬 데이터 정리
+      await cancelAllCareNotifications();
+
+      useNotificationStore.getState().clearPendingScheduleId();
+
+      usePetStore.getState().clearPet();
+
+      useHealthStore.getState().clearRecords();
+
+      useCareScheduleStore.getState().clearSchedules();
+
+      // 삭제된 계정의 로컬 세션 제거
+      await supabase.auth.signOut();
+
+      router.replace('/');
+    } catch (error) {
+      console.error('DELETE ACCOUNT ERROR:', error);
+
+      Alert.alert('회원 탈퇴에 실패했어요', '잠시 후 다시 시도해주세요.');
+    }
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      '회원 탈퇴',
+      '탈퇴하면 반려동물 정보와 건강 기록, 예정된 관리 일정이 모두 삭제돼요.',
+      [
+        {
+          text: '취소',
+          style: 'cancel',
+        },
+        {
+          text: '계속',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              '정말 탈퇴할까요?',
+              '삭제된 계정과 기록은 복구할 수 없어요.',
+              [
+                {
+                  text: '취소',
+                  style: 'cancel',
+                },
+                {
+                  text: '회원 탈퇴',
+                  style: 'destructive',
+                  onPress: handleDeleteAccount,
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -236,7 +298,7 @@ export default function MenuScreen() {
 
       <View style={styles.section}>
         <AppText variant="body2" color="secondary" style={styles.sectionTitle}>
-          함께 관리하기
+          반려동물 이해하기
         </AppText>
 
         <View style={styles.card}>
@@ -308,6 +370,16 @@ export default function MenuScreen() {
             iconStyle={styles.menuIconNeutral}
             title="로그아웃"
             onPress={confirmLogout}
+          />
+
+          <View style={styles.divider} />
+
+          <MenuItem
+            icon={<UserX size={22} color={colors.neutral[600]} />}
+            iconStyle={styles.menuIconNeutral}
+            title="회원 탈퇴"
+            description="계정과 모든 기록을 삭제해요"
+            onPress={confirmDeleteAccount}
           />
         </View>
       </View>
