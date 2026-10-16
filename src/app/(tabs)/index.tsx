@@ -495,6 +495,21 @@ export default function TodayScreen() {
                       event.nativeEvent.layout.y,
                     )
                   }
+                  onPress={() => {
+                    const groupId = item.schedules[0]?.scheduleGroupId;
+
+                    if (!groupId) {
+                      return;
+                    }
+
+                    router.push({
+                      pathname: '/care/group/[groupId]',
+                      params: {
+                        groupId,
+                        dueDate: item.dueDate,
+                      },
+                    });
+                  }}
                 />
               ) : (
                 <TodayTaskCard

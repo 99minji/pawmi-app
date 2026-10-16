@@ -20,6 +20,7 @@ type MedicationGroupCardProps = {
   disabled: boolean;
   onComplete: (schedule: CareSchedule) => void;
   onLayout: (event: LayoutChangeEvent) => void;
+  onPress?: () => void;
 };
 
 /**
@@ -37,11 +38,13 @@ export function MedicationGroupCard({
   disabled,
   onComplete,
   onLayout,
+  onPress,
 }: MedicationGroupCardProps) {
-  const firstSchedule = schedules[0];
+  const displaySchedule =
+    schedules.find((schedule) => !schedule.completedAt) ?? schedules[0];
 
   return (
-    <View style={styles.card} onLayout={onLayout}>
+    <Pressable style={styles.card} onLayout={onLayout} onPress={onPress}>
       <View style={styles.header}>
         <View style={styles.icon}>
           <ScheduleTypeIcon type="MEDICATION" />
@@ -49,8 +52,10 @@ export function MedicationGroupCard({
 
         <View style={styles.title}>
           <AppText variant="body1">
-            {firstSchedule.name}
-            {firstSchedule.dosageText ? ` · ${firstSchedule.dosageText}` : ''}
+            {displaySchedule.name}
+            {displaySchedule.dosageText
+              ? ` · ${displaySchedule.dosageText}`
+              : ''}
           </AppText>
 
           <AppText variant="label" color="tertiary" style={styles.subText}>
@@ -107,7 +112,7 @@ export function MedicationGroupCard({
           );
         })}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
