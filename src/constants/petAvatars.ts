@@ -1,5 +1,8 @@
 import type { AvatarBreed } from '@/types/pet';
 
+// 꼬리 파츠 기본 위치 (꼬리가 이미지 오른쪽 끝에 그려진 품종 기준)
+const DEFAULT_TAIL_LAYOUT = { right: '2%', top: '34%' } as const;
+
 export const petAvatars = {
   MALTESE: {
     idle: require('../../assets/avatars/dog/maltese/idle.png'),
@@ -9,6 +12,8 @@ export const petAvatars = {
     rest: require('../../assets/avatars/dog/maltese/rest.png'),
     idleBody: require('../../assets/avatars/dog/maltese/idle-body.png'),
     idleTail: require('../../assets/avatars/dog/maltese/idle-tail.png'),
+    // 꼬리가 이미지 가운데에 그려져 있어 기본 위치에선 몸통에 가려진다.
+    tailLayout: { right: '-3%', top: '52%' },
   },
   POMERANIAN: {
     idle: require('../../assets/avatars/dog/pomeranian/idle.png'),
@@ -18,6 +23,7 @@ export const petAvatars = {
     rest: require('../../assets/avatars/dog/pomeranian/rest.png'),
     idleBody: require('../../assets/avatars/dog/pomeranian/idle-body.png'),
     idleTail: require('../../assets/avatars/dog/pomeranian/idle-tail.png'),
+    tailLayout: DEFAULT_TAIL_LAYOUT,
   },
   SCHNAUZER: {
     idle: require('../../assets/avatars/dog/schnauzer/idle.png'),
@@ -27,6 +33,7 @@ export const petAvatars = {
     rest: require('../../assets/avatars/dog/schnauzer/rest.png'),
     idleBody: require('../../assets/avatars/dog/schnauzer/idle-body.png'),
     idleTail: require('../../assets/avatars/dog/schnauzer/idle-tail.png'),
+    tailLayout: DEFAULT_TAIL_LAYOUT,
   },
 } as const;
 

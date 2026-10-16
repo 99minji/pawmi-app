@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
@@ -20,11 +20,26 @@ import { usePetStore } from '@/stores/usePetStore';
 import { dateToOccurredAt } from '@/utils/date';
 
 export default function SymptomRecordScreen() {
-  const [symptom, setSymptom] = useState('');
+  const params = useLocalSearchParams<{
+    ai?: string;
+    occurredAt?: string;
+    symptom?: string;
+    memo?: string;
+  }>();
 
-  const [memo, setMemo] = useState('');
+  const [symptom, setSymptom] = useState(
+    typeof params.symptom === 'string' ? params.symptom : '',
+  );
 
-  const [occurredDate, setOccurredDate] = useState(() => new Date());
+  const [memo, setMemo] = useState(
+    typeof params.memo === 'string' ? params.memo : '',
+  );
+
+  const [occurredDate, setOccurredDate] = useState(() =>
+    typeof params.occurredAt === 'string' && params.occurredAt
+      ? parseLocalDate(params.occurredAt)
+      : new Date(),
+  );
 
   const [saving, setSaving] = useState(false);
 
@@ -138,6 +153,12 @@ export default function SymptomRecordScreen() {
       </View>
     </KeyboardAvoidingView>
   );
+}
+
+function parseLocalDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+
+  return new Date(year, month - 1, day, 12, 0, 0);
 }
 
 const styles = StyleSheet.create({

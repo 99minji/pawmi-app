@@ -1,5 +1,10 @@
 import { useEffect } from 'react';
-import { ImageSourcePropType, StyleSheet, View } from 'react-native';
+import {
+  DimensionValue,
+  ImageSourcePropType,
+  StyleSheet,
+  View,
+} from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -15,6 +20,8 @@ type Props = {
   size?: number;
   source: ImageSourcePropType;
   tailSource?: ImageSourcePropType;
+  // 품종마다 꼬리 파츠가 그려진 위치가 달라 직접 맞춘다.
+  tailLayout?: { right: DimensionValue; top: DimensionValue };
   // 아바타 위에 떠오르는 Zzz 파츠 (rest 상태)
   sleepSource?: ImageSourcePropType;
   reaction?: AvatarReaction;
@@ -24,6 +31,7 @@ export function AnimatedPetAvatar({
   size = 220,
   source,
   tailSource,
+  tailLayout,
   sleepSource,
   reaction = 'idle',
 }: Props) {
@@ -186,7 +194,7 @@ export function AnimatedPetAvatar({
         <Animated.Image
           source={tailSource}
           resizeMode="contain"
-          style={[styles.tail, tailStyle]}
+          style={[styles.tail, tailLayout, tailStyle]}
         />
       )}
 

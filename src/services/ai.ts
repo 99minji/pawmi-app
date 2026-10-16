@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 
-import type { ParsedCareSchedule } from '@/types/ai';
+import type { ParsedCareSchedule, ParsedHealthRecord } from '@/types/ai';
 
 type ParseCareScheduleInput = {
   text: string;
@@ -29,4 +29,27 @@ export async function parseCareSchedule(
   }
 
   return data as ParsedCareSchedule;
+}
+
+export async function parseHealthRecord(
+  input: string,
+): Promise<ParsedHealthRecord> {
+  const { data, error } = await supabase.functions.invoke(
+    'parse-health-record',
+    {
+      body: {
+        input,
+      },
+    },
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data?.result) {
+    throw new Error('건강 기록을 해석하지 못했어요.');
+  }
+
+  return data.result as ParsedHealthRecord;
 }

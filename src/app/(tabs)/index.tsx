@@ -436,6 +436,7 @@ export default function TodayScreen() {
                 size={220}
                 source={avatarSource}
                 tailSource={tailSource}
+                tailLayout={avatar.tailLayout}
                 sleepSource={sleepSource}
                 reaction={avatarReaction}
               />

@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   Alert,
@@ -23,15 +23,33 @@ import type { CareSchedule } from '@/types/care';
 import { dateToOccurredAt } from '@/utils/date';
 
 export default function MedicationRecordScreen() {
+  const params = useLocalSearchParams<{
+    ai?: string;
+    occurredAt?: string;
+    medicationName?: string;
+    dosageText?: string;
+    memo?: string;
+  }>();
+
   const schedules = useCareScheduleStore((state) => state.schedules);
 
-  const [medicationName, setMedicationName] = useState('');
+  const [medicationName, setMedicationName] = useState(
+    typeof params.medicationName === 'string' ? params.medicationName : '',
+  );
 
-  const [dosageText, setDosageText] = useState('');
+  const [dosageText, setDosageText] = useState(
+    typeof params.dosageText === 'string' ? params.dosageText : '',
+  );
 
-  const [memo, setMemo] = useState('');
+  const [memo, setMemo] = useState(
+    typeof params.memo === 'string' ? params.memo : '',
+  );
 
-  const [occurredDate, setOccurredDate] = useState(() => new Date());
+  const [occurredDate, setOccurredDate] = useState(() =>
+    typeof params.occurredAt === 'string' && params.occurredAt
+      ? parseLocalDate(params.occurredAt)
+      : new Date(),
+  );
 
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(
     null,
@@ -270,6 +288,12 @@ export default function MedicationRecordScreen() {
       </View>
     </KeyboardAvoidingView>
   );
+}
+
+function parseLocalDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+
+  return new Date(year, month - 1, day, 12, 0, 0);
 }
 
 const styles = StyleSheet.create({
